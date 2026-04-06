@@ -4,6 +4,8 @@
 [![CodeQL](https://github.com/MoshPe/StreamFence/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/MoshPe/StreamFence/actions/workflows/codeql.yml)
 [![codecov](https://codecov.io/gh/MoshPe/StreamFence/branch/main/graph/badge.svg)](https://codecov.io/gh/MoshPe/StreamFence)
 [![Maven Central](https://img.shields.io/maven-central/v/io.github.moshpe/streamfence-core.svg)](https://central.sonatype.com/artifact/io.github.moshpe/streamfence-core)
+[![GitHub Release](https://img.shields.io/github/v/release/MoshPe/StreamFence)](https://github.com/MoshPe/StreamFence/releases/latest)
+[![Java](https://img.shields.io/badge/Java-25-blue?logo=openjdk)](https://openjdk.org/projects/jdk/25/)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 
 ## Why StreamFence
