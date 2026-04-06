@@ -38,14 +38,14 @@ jobs:
 
       - name: Upload SARIF report
         uses: github/codeql-action/upload-sarif@v4
-        if: always()
+        if: always() && hashFiles('streamfence-core/target/dependency-check-report.sarif') != ''
         with:
           sarif_file: streamfence-core/target/dependency-check-report.sarif
           category: dependency-check
 
       - name: Upload HTML report
         uses: actions/upload-artifact@v4
-        if: always()
+        if: always() && hashFiles('streamfence-core/target/dependency-check-report.html') != ''
         with:
           name: dependency-check-report
           path: streamfence-core/target/dependency-check-report.html
