@@ -8,6 +8,7 @@ on:
 jobs:
   release:
     runs-on: ubuntu-latest
+    environment: MavenCentralDeploy
     permissions:
       contents: write   # needed to create GitHub Release
 
