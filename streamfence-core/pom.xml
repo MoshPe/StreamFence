@@ -13,6 +13,7 @@
 
     <artifactId>streamfence-core</artifactId>
     <packaging>jar</packaging>
+
     <name>streamfence-core</name>
 
     <description>Production-oriented plain Java Socket.IO server library.</description>

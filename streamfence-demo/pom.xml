@@ -13,7 +13,9 @@
 
     <artifactId>streamfence-demo</artifactId>
     <packaging>jar</packaging>
+
     <name>streamfence-demo</name>
+
     <description>Runnable demo wiring the StreamFence library against application.yaml.</description>
 
     <dependencies>
