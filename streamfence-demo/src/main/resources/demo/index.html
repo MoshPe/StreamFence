@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>StreamFence Server Showcase Dashboard</title>
+    <link rel="stylesheet" href="/demo/styles.css">
+</head>
+<body>
+<div class="shell">
+    <header class="hero">
+        <div class="hero__copy">
+            <p class="eyebrow">Showcase-first runtime dashboard</p>
+            <h1>StreamFence under live load</h1>
+            <p class="hero__lede">
+                Continuous swarm traffic, real metrics from the management scrape, and preset-driven behavior changes
+                without a frontend build step.
+            </p>
+        </div>
+        <div class="hero__status">
+            <span class="status-pill status-pill--neutral" id="connection-status">Event stream offline</span>
+            <span class="status-pill status-pill--neutral" id="runtime-status">Waiting for metrics</span>
+            <span class="status-pill status-pill--neutral" id="preset-status">Preset loading</span>
+        </div>
+    </header>
+
+    <section class="preset-strip panel" aria-label="Preset Bar">
+        <div class="panel-header">
+            <div>
+                <p class="panel-kicker">Preset Switchboard</p>
+                <h2>Delivery profiles</h2>
+            </div>
+            <p class="panel-meta" id="preset-description">Loading preset metadata</p>
+        </div>
+        <div class="preset-grid" id="preset-grid"></div>
+    </section>
+
+    <section class="kpi-grid" aria-label="Runtime Summary">
+        <article class="kpi-card">
+            <span class="kpi-label">Active Clients</span>
+            <strong class="kpi-value" id="kpi-clients">0</strong>
+            <span class="kpi-meta" id="kpi-processes">0 processes</span>
+        </article>
+        <article class="kpi-card">
+            <span class="kpi-label">Total Messages</span>
+            <strong class="kpi-value" id="kpi-total-messages">0</strong>
+            <span class="kpi-meta" id="kpi-throughput">0 msg/s</span>
+        </article>
+        <article class="kpi-card">
+            <span class="kpi-label">Send Throughput</span>
+            <strong class="kpi-value" id="kpi-send-rate">0 B/s</strong>
+            <span class="kpi-meta" id="kpi-send-total">0 sent counters</span>
+        </article>
+        <article class="kpi-card">
+            <span class="kpi-label">Receive Throughput</span>
+            <strong class="kpi-value" id="kpi-receive-rate">0 B/s</strong>
+            <span class="kpi-meta" id="kpi-receive-total">0 receive counters</span>
+        </article>
+        <article class="kpi-card">
+            <span class="kpi-label">Pressure Signals</span>
+            <strong class="kpi-value" id="kpi-pressure">0</strong>
+            <span class="kpi-meta" id="kpi-pressure-breakdown">retries 0, overflow 0</span>
+        </article>
+        <article class="kpi-card">
+            <span class="kpi-label">Endpoints</span>
+            <strong class="kpi-value kpi-value--small" id="kpi-socket-url">Loading</strong>
+            <span class="kpi-meta" id="kpi-metrics-url">Loading</span>
+        </article>
+    </section>
+
+    <section class="chart-grid">
+        <article class="panel chart-panel">
+            <div class="panel-header">
+                <div>
+                    <p class="panel-kicker">Live Throughput</p>
+                    <h2>Messages per second</h2>
+                </div>
+                <p class="panel-meta" id="chart-throughput-meta">60 second window</p>
+            </div>
+            <svg class="chart" id="chart-throughput" viewBox="0 0 520 180" preserveAspectRatio="none"></svg>
+        </article>
+        <article class="panel chart-panel">
+            <div class="panel-header">
+                <div>
+                    <p class="panel-kicker">Network Flow</p>
+                    <h2>Send vs receive bytes</h2>
+                </div>
+                <p class="panel-meta" id="chart-network-meta">B/s</p>
+            </div>
+            <svg class="chart" id="chart-network" viewBox="0 0 520 180" preserveAspectRatio="none"></svg>
+        </article>
+        <article class="panel chart-panel">
+            <div class="panel-header">
+                <div>
+                    <p class="panel-kicker">Connection Footprint</p>
+                    <h2>Clients online</h2>
+                </div>
+                <p class="panel-meta" id="chart-clients-meta">Swarm sockets</p>
+            </div>
+            <svg class="chart" id="chart-clients" viewBox="0 0 520 180" preserveAspectRatio="none"></svg>
+        </article>
+    </section>
+
+    <section class="story-grid">
+        <article class="panel">
+            <div class="panel-header">
+                <div>
+                    <p class="panel-kicker">Namespace Breakdown</p>
+                    <h2>Where the traffic is landing</h2>
+                </div>
+                <p class="panel-meta" id="namespace-meta">Metrics by namespace</p>
+            </div>
+            <div class="namespace-grid" id="namespace-grid"></div>
+        </article>
+        <article class="panel">
+            <div class="panel-header">
+                <div>
+                    <p class="panel-kicker">Config Story</p>
+                    <h2>Why this preset behaves the way it does</h2>
+                </div>
+                <p class="panel-meta" id="config-story-meta">Preset-level controls</p>
+            </div>
+            <div class="story-list" id="config-story"></div>
+        </article>
+    </section>
+
+    <section class="panel deep-dive-panel">
+        <div class="panel-header">
+            <div>
+                <p class="panel-kicker">Preset Deep Dive</p>
+                <h2>Exactly how the active preset behaves</h2>
+            </div>
+            <p class="panel-meta" id="deep-dive-meta">Generated from active server and client config</p>
+        </div>
+        <div class="deep-dive-grid" id="deep-dive"></div>
+    </section>
+
+    <section class="lower-grid">
+        <article class="panel timeline-panel">
+            <div class="panel-header">
+                <div>
+                    <p class="panel-kicker">Live Timeline</p>
+                    <h2>Launcher, server, and client event feed</h2>
+                </div>
+                <p class="panel-meta" id="timeline-meta">Awaiting events</p>
+            </div>
+            <div class="timeline" id="timeline" aria-live="polite" aria-relevant="additions"></div>
+        </article>
+
+        <div class="insight-stack">
+            <article class="panel">
+                <div class="panel-header">
+                    <div>
+                        <p class="panel-kicker">Payload Metadata</p>
+                        <h2>Latest payload characteristics</h2>
+                    </div>
+                    <p class="panel-meta" id="payload-meta">Waiting for payload samples</p>
+                </div>
+                <div class="payload-grid" id="payload-details"></div>
+                <pre class="payload-preview" id="payload-preview">No payload preview yet.</pre>
+            </article>
+
+            <article class="panel">
+                <div class="panel-header">
+                    <div>
+                        <p class="panel-kicker">Raw Counters</p>
+                        <h2>Current totals and process state</h2>
+                    </div>
+                    <p class="panel-meta" id="raw-meta">From `/api/dashboard`</p>
+                </div>
+                <div class="raw-grid" id="raw-counters"></div>
+                <div class="process-list" id="process-list"></div>
+            </article>
+        </div>
+
+        <article class="panel controls-panel">
+            <div class="panel-header">
+                <div>
+                    <p class="panel-kicker">Manual Client Controls</p>
+                    <h2>Secondary browser interaction</h2>
+                </div>
+                <p class="panel-meta" id="manual-status">Manual browser client idle</p>
+            </div>
+
+            <section class="controls-section">
+                <h3>Server actions</h3>
+                <div class="action-grid">
+                    <button type="button" class="button button--accent" data-console-action="broadcast-sample">Broadcast sample</button>
+                    <button type="button" class="button button--accent" data-console-action="targeted-sample">Target sample</button>
+                    <button type="button" class="button" data-console-action="pause-scenario">Pause scenario</button>
+                    <button type="button" class="button" data-console-action="resume-scenario">Resume scenario</button>
+                </div>
+                <label class="field">
+                    <span>Target Client Id</span>
+                    <input id="target-client-id" type="text" placeholder="client-id" autocomplete="off">
+                </label>
+                <label class="field">
+                    <span>Persona</span>
+                    <select id="persona-select"></select>
+                </label>
+                <button type="button" class="button" data-console-action="restart-persona">Restart persona</button>
+            </section>
+
+            <section class="controls-section">
+                <h3>Manual browser client</h3>
+                <form class="control-form" id="manual-client-form">
+                    <label class="field">
+                        <span>Namespace</span>
+                        <select id="manual-namespace"></select>
+                    </label>
+                    <label class="field">
+                        <span>Token</span>
+                        <input id="manual-token" type="text" value="change-me" autocomplete="off">
+                    </label>
+                    <label class="field">
+                        <span>Topic</span>
+                        <select id="manual-topic"></select>
+                    </label>
+                    <label class="field">
+                        <span>Payload</span>
+                        <textarea id="manual-payload" rows="5">{"value":42}</textarea>
+                    </label>
+                    <div class="action-grid">
+                        <button type="button" class="button button--primary" id="manual-connect">Connect</button>
+                        <button type="button" class="button" id="manual-disconnect">Disconnect</button>
+                        <button type="button" class="button" id="manual-subscribe">Subscribe</button>
+                        <button type="button" class="button" id="manual-unsubscribe">Unsubscribe</button>
+                        <button type="button" class="button" id="manual-publish">Publish</button>
+                        <button type="button" class="button button--accent" id="manual-bulk">Send bulk sample</button>
+                    </div>
+                </form>
+            </section>
+        </article>
+    </section>
+</div>
+<script src="https://cdn.socket.io/2.1.1/socket.io.min.js" crossorigin="anonymous"></script>
+<script src="/demo/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,93 @@
+host: 0.0.0.0
+port: 9092
+transportMode: WS
+# Prometheus scrape endpoint. Set managementPort to 0 to disable.
+managementHost: 0.0.0.0
+managementPort: 9093
+# Max total time (ms) allowed for close() to drain socket.io, scheduler, and
+# sender executor. A client that refuses to disconnect cannot hang shutdown
+# beyond this bound.
+shutdownDrainMs: 10000
+# Sender executor thread count. 0 = auto (max(4, availableProcessors)).
+senderThreads: 0
+# Auth-failure sliding-window rate limiter (per remote IP). Applied only when
+# authMode != NONE.
+authRejectWindowMs: 60000
+authRejectMaxPerWindow: 20
+# Target profile: 250 concurrent clients, ~100 msg/s per client on /reliable
+# and /non-reliable (small JSON, ~1-4 KB). /bulk is occasional, up to 4.5 MB
+# per message. Auth posture is configurable per namespace - flip any
+# authRequired flag to true to secure that namespace.
+# When transportMode is WSS, provide PEM files and a keystore password.
+# tls:
+#   certChainPemPath: C:/certs/wsserver-cert.pem
+#   privateKeyPemPath: C:/certs/wsserver-key.pem
+#   privateKeyPassword:
+#   keyStorePassword: changeit
+#   protocol: TLSv1.3
+pingIntervalMs: 20000
+pingTimeoutMs: 40000
+# Frame limit sized for the 4.5 MB /bulk payload plus Socket.IO framing overhead.
+maxFramePayloadLength: 5242880
+maxHttpContentLength: 5242880
+compressionEnabled: true
+authMode: TOKEN
+staticTokens:
+  # Demo automated clients and the browser console use this shared token on
+  # token-protected namespaces (`/reliable` and `/bulk`).
+  demo-client: change-me
+namespaces:
+  /reliable:
+    authRequired: true
+  /non-reliable:
+    authRequired: false
+  /bulk:
+    authRequired: true
+topicPolicies:
+  # The multi-process demo launcher starts these default personas:
+  # - price-bot  -> /non-reliable, topic `prices`
+  # - alerts-bot -> /reliable, topic `alerts`
+  # - bulk-bot   -> /bulk, topic `binary.blob`
+  # The browser console also exposes manual controls against the same topics.
+  # Keep one policy block per namespace when using the library adapter.
+  # Each block may list one or more topic names through `topics: [a, b]`.
+  - namespace: /non-reliable
+    topics: [prices, quotes]
+    deliveryMode: BEST_EFFORT
+    overflowAction: COALESCE
+    maxQueuedMessagesPerClient: 64
+    maxQueuedBytesPerClient: 524288        # 512 KB per client lane
+    ackTimeoutMs: 1000
+    maxRetries: 0
+    coalesce: true
+    allowPolling: true
+    authRequired: false
+  # Reliable alerts. Queue sized to absorb up to ~2s of 100 msg/s bursts per
+  # client; REJECT_NEW is required for AT_LEAST_ONCE in v1. Ack timeout is kept
+  # tight so retries happen before the queue fills. maxInFlight opens a
+  # pipelined window so reliable throughput is not capped at 1/RTT.
+  - namespace: /reliable
+    topics: [alerts]
+    deliveryMode: AT_LEAST_ONCE
+    overflowAction: REJECT_NEW
+    maxQueuedMessagesPerClient: 256
+    maxQueuedBytesPerClient: 1048576       # 1 MB per client lane
+    ackTimeoutMs: 1500
+    maxRetries: 3
+    coalesce: false
+    allowPolling: true
+    authRequired: true
+    maxInFlight: 8
+  # Rare-but-large binary drops. Per-client byte cap holds at most one in-flight
+  # plus one queued message (~10 MB), so 250 clients = ~2.5 GB worst case.
+  - namespace: /bulk
+    topics: [binary.blob]
+    deliveryMode: BEST_EFFORT
+    overflowAction: DROP_OLDEST
+    maxQueuedMessagesPerClient: 2
+    maxQueuedBytesPerClient: 10485760      # 10 MB per client lane (~2 x 4.5 MB)
+    ackTimeoutMs: 2000
+    maxRetries: 0
+    coalesce: false
+    allowPolling: false
+    authRequired: true

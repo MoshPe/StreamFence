@@ -1,0 +1,51 @@
+host: 127.0.0.1
+port: 9090
+transportMode: WS
+pingIntervalMs: 15000
+pingTimeoutMs: 30000
+maxFramePayloadLength: 6291456
+maxHttpContentLength: 6291456
+compressionEnabled: false
+enableCors: false
+authMode: NONE
+namespaces:
+  /non-reliable:
+    authRequired: false
+  /reliable:
+    authRequired: false
+  /bulk:
+    authRequired: false
+topicPolicies:
+  - namespace: /non-reliable
+    topic: prices
+    deliveryMode: BEST_EFFORT
+    overflowAction: REJECT_NEW
+    maxQueuedMessagesPerClient: 8
+    maxQueuedBytesPerClient: 1024
+    ackTimeoutMs: 1000
+    maxRetries: 0
+    coalesce: false
+    allowPolling: true
+    authRequired: false
+  - namespace: /reliable
+    topic: alerts
+    deliveryMode: AT_LEAST_ONCE
+    overflowAction: REJECT_NEW
+    maxQueuedMessagesPerClient: 16
+    maxQueuedBytesPerClient: 4096
+    ackTimeoutMs: 2000
+    maxRetries: 3
+    coalesce: false
+    allowPolling: true
+    authRequired: false
+  - namespace: /bulk
+    topic: uploads
+    deliveryMode: AT_LEAST_ONCE
+    overflowAction: REJECT_NEW
+    maxQueuedMessagesPerClient: 4
+    maxQueuedBytesPerClient: 65536
+    ackTimeoutMs: 5000
+    maxRetries: 2
+    coalesce: false
+    allowPolling: false
+    authRequired: false
