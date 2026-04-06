@@ -13,6 +13,23 @@
 
     <description>Parent POM for the streamfence library and demo modules.</description>
 
+    <url>https://github.com/MoshPe/StreamFence</url>
+
+<licenses>
+  <license>
+    <name>Apache License, Version 2.0</name>
+    <url>https://www.apache.org/licenses/LICENSE-2.0</url>
+    <distribution>repo</distribution>
+  </license>
+</licenses>
+
+<scm>
+  <connection>scm:git:git://github.com/MoshPe/StreamFence.git</connection>
+  <developerConnection>scm:git:ssh://github.com/MoshPe/StreamFence.git</developerConnection>
+  <url>https://github.com/MoshPe/StreamFence</url>
+  <tag>HEAD</tag>
+</scm>
+
     <modules>
         <module>streamfence-core</module>
         <module>streamfence-demo</module>
