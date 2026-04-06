@@ -33,7 +33,8 @@ jobs:
               -DfailBuildOnCVSS=7 \
               -DsuppressionFile=.github/dependency-check-suppressions.xml \
               -Dformats=HTML,SARIF \
-              -DoutputDirectory=target/dependency-check
+              -DoutputDirectory=target/dependency-check \
+              -DnvdApiKey=${{ secrets.NVD_API_KEY }}
         continue-on-error: true
 
       - name: Upload SARIF report
