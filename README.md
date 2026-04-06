@@ -1,12 +1,19 @@
 # StreamFence - Embeddable Java Socket.IO Server Library
 
-[![CI](https://github.com/MoshPe/StreamFence/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/MoshPe/StreamFence/actions/workflows/ci.yml)
-[![CodeQL](https://github.com/MoshPe/StreamFence/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/MoshPe/StreamFence/actions/workflows/codeql.yml)
-[![codecov](https://codecov.io/gh/MoshPe/StreamFence/branch/main/graph/badge.svg)](https://codecov.io/gh/MoshPe/StreamFence)
-[![Maven Central](https://img.shields.io/maven-central/v/io.github.moshpe/streamfence-core.svg)](https://central.sonatype.com/artifact/io.github.moshpe/streamfence-core)
-[![GitHub Release](https://img.shields.io/github/v/release/MoshPe/StreamFence)](https://github.com/MoshPe/StreamFence/releases/latest)
-[![Java](https://img.shields.io/badge/Java-25-blue?logo=openjdk)](https://openjdk.org/projects/jdk/25/)
-[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
+<p align="center">
+  <img src="assets/logo.png" alt="StreamFence logo" width="320">
+</p>
+
+<p align="center">
+  <a href="https://github.com/MoshPe/StreamFence/actions/workflows/ci.yml"><img src="https://github.com/MoshPe/StreamFence/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"></a>
+  <a href="https://github.com/MoshPe/StreamFence/actions/workflows/codeql.yml"><img src="https://github.com/MoshPe/StreamFence/actions/workflows/codeql.yml/badge.svg?branch=main" alt="CodeQL"></a>
+  <a href="https://codecov.io/gh/MoshPe/StreamFence"><img src="https://codecov.io/gh/MoshPe/StreamFence/branch/main/graph/badge.svg" alt="codecov"></a>
+  <a href="https://central.sonatype.com/artifact/io.github.moshpe/streamfence-core"><img src="https://img.shields.io/maven-central/v/io.github.moshpe/streamfence-core.svg" alt="Maven Central"></a>
+  <a href="https://github.com/MoshPe/StreamFence/releases/latest"><img src="https://img.shields.io/github/v/release/MoshPe/StreamFence" alt="GitHub Release"></a>
+  <a href="https://openjdk.org/projects/jdk/25/"><img src="https://img.shields.io/badge/Java-25-blue?logo=openjdk" alt="Java 25"></a>
+  <a href="https://www.apache.org/licenses/LICENSE-2.0"><img src="https://img.shields.io/badge/license-Apache%202.0-blue.svg" alt="License"></a>
+</p>
+
 
 ## Why StreamFence
 
