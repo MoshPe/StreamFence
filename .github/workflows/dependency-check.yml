@@ -1,0 +1,52 @@
+name: Dependency Check
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '41 6 * * 1'
+
+jobs:
+  owasp:
+    name: OWASP Dependency Check
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 25
+        uses: actions/setup-java@v4
+        with:
+          java-version: '25'
+          distribution: 'temurin'
+
+      - name: Run OWASP Dependency Check
+        run: |
+          mvn -pl streamfence-core \
+              --no-transfer-progress \
+              org.owasp:dependency-check-maven:check \
+              -Dgpg.skip=true \
+              -DfailBuildOnCVSS=7 \
+              -DsuppressionFile=.github/dependency-check-suppressions.xml \
+              -Dformats=HTML,SARIF \
+              -DoutputDirectory=target/dependency-check
+        continue-on-error: true
+
+      - name: Upload SARIF report
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: streamfence-core/target/dependency-check/dependency-check-report.sarif
+          category: dependency-check
+
+      - name: Upload HTML report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dependency-check-report
+          path: streamfence-core/target/dependency-check/dependency-check-report.html
+          retention-days: 30
