@@ -26,11 +26,12 @@ jobs:
 
       - name: Set snapshot version
         run: |
-          BASE=$(mvn -pl streamfence-core help:evaluate \
+          BASE=$(mvn help:evaluate \
               -Dexpression=project.version -q -DforceStdout | sed 's/-SNAPSHOT//')
-          mvn -pl streamfence-core versions:set \
+          mvn versions:set \
               -DnewVersion=${BASE}-SNAPSHOT \
-              -DgenerateBackupPoms=false
+              -DgenerateBackupPoms=false \
+              -N
 
       - name: Publish snapshot to GitHub Packages
         run: |
