@@ -11,6 +11,38 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
+/**
+ * Immutable snapshot of all configuration fields for a {@link SocketIoServer}.
+ *
+ * <p>Create instances via {@link SocketIoServer#builder()}, or load them directly from a
+ * YAML or JSON file using the static factory methods {@link #fromYaml(Path)},
+ * {@link #fromJson(Path)}, and {@link #fromClasspath(String)}.
+ *
+ * @param host                  the bind address
+ * @param port                  the Socket.IO listen port
+ * @param transportMode         the transport mode ({@link TransportMode#WS} or
+ *                              {@link TransportMode#WSS})
+ * @param tls                   TLS settings; required when {@code transportMode} is
+ *                              {@link TransportMode#WSS}
+ * @param pingIntervalMs        WebSocket ping interval in milliseconds
+ * @param pingTimeoutMs         WebSocket ping timeout in milliseconds
+ * @param maxFramePayloadLength maximum WebSocket frame payload length in bytes
+ * @param maxHttpContentLength  maximum HTTP request body length in bytes (polling transport)
+ * @param compressionEnabled    whether HTTP and WebSocket compression is enabled
+ * @param enableCors            whether permissive CORS headers are added to HTTP responses
+ * @param origin                allowed CORS origin, or {@code null} for no restriction
+ * @param authMode              server-level authentication mode
+ * @param staticTokens          immutable map of principal to bearer token for built-in auth
+ * @param namespaces            the namespace configurations; at least one is required
+ * @param managementHost        bind address for the management HTTP server
+ * @param managementPort        port for the Prometheus scrape endpoint; {@code 0} disables it
+ * @param shutdownDrainMs       grace period in milliseconds during shutdown
+ * @param senderThreads         sender thread pool size; {@code 0} means auto-size
+ * @param authRejectWindowMs    sliding window duration for auth rate limiting in milliseconds
+ * @param authRejectMaxPerWindow maximum auth rejections per window before rate limiting
+ * @param tokenValidator        custom token validator; may be {@code null}
+ * @param listeners             ordered list of event listeners
+ */
 public record SocketIoServerSpec(
         String host,
         int port,
@@ -36,6 +68,12 @@ public record SocketIoServerSpec(
         List<ServerEventListener> listeners
 ) {
 
+    /**
+     * Compact constructor that validates and normalises field values.
+     *
+     * @throws IllegalArgumentException if any required field is missing, out of range, or
+     *                                  the namespace list is empty
+     */
     public SocketIoServerSpec {
         if (host == null || host.isBlank()) {
             throw new IllegalArgumentException("host is required");
@@ -85,33 +123,38 @@ public record SocketIoServerSpec(
     }
 
     /**
-     * Loads a {@code SocketIoServerSpec} from a YAML file on the filesystem.
+     * Loads a {@link SocketIoServerSpec} from a YAML file on the filesystem.
      *
-     * @throws IllegalArgumentException if {@code path} is null, unreadable, or
-     *         the document fails validation. The cause and message include the
-     *         source path and — when Jackson provides it — the offending line.
+     * @param path the path to the YAML configuration file
+     * @return the loaded and validated spec
+     * @throws IllegalArgumentException if {@code path} is null, unreadable, or the document
+     *         fails validation; the message includes the source path and — when Jackson
+     *         provides it — the offending line number
      */
     public static SocketIoServerSpec fromYaml(Path path) {
         return loadFromPath(path);
     }
 
     /**
-     * Loads a {@code SocketIoServerSpec} from a JSON file on the filesystem.
+     * Loads a {@link SocketIoServerSpec} from a JSON file on the filesystem.
      *
-     * @throws IllegalArgumentException on any read or validation failure. See
-     *         {@link #fromYaml(Path)} for error details.
+     * @param path the path to the JSON configuration file
+     * @return the loaded and validated spec
+     * @throws IllegalArgumentException on any read or validation failure; see
+     *         {@link #fromYaml(Path)} for error details
      */
     public static SocketIoServerSpec fromJson(Path path) {
         return loadFromPath(path);
     }
 
     /**
-     * Loads a {@code SocketIoServerSpec} from a classpath resource. The
-     * format is inferred from the resource name: {@code .json} → JSON,
-     * anything else → YAML.
+     * Loads a {@link SocketIoServerSpec} from a classpath resource. The format is inferred
+     * from the resource name: {@code .json} implies JSON; anything else is treated as YAML.
      *
-     * @throws IllegalArgumentException if the resource is not on the classpath
-     *         or cannot be parsed.
+     * @param resource the classpath resource name (e.g. {@code "application.yaml"})
+     * @return the loaded and validated spec
+     * @throws IllegalArgumentException if the resource is not found on the classpath or
+     *         cannot be parsed
      */
     public static SocketIoServerSpec fromClasspath(String resource) {
         Objects.requireNonNull(resource, "resource");
