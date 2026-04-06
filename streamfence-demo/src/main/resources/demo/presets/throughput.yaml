@@ -1,0 +1,59 @@
+host: 0.0.0.0
+port: 9092
+transportMode: WS
+managementHost: 0.0.0.0
+managementPort: 9093
+shutdownDrainMs: 10000
+senderThreads: 0
+authRejectWindowMs: 60000
+authRejectMaxPerWindow: 20
+pingIntervalMs: 20000
+pingTimeoutMs: 40000
+maxFramePayloadLength: 5242880
+maxHttpContentLength: 5242880
+compressionEnabled: true
+authMode: TOKEN
+staticTokens:
+  demo-client: change-me
+namespaces:
+  /reliable:
+    authRequired: true
+  /non-reliable:
+    authRequired: false
+  /bulk:
+    authRequired: true
+topicPolicies:
+  - namespace: /non-reliable
+    topics: [prices]
+    deliveryMode: BEST_EFFORT
+    overflowAction: COALESCE
+    maxQueuedMessagesPerClient: 256
+    maxQueuedBytesPerClient: 1048576
+    ackTimeoutMs: 1000
+    maxRetries: 0
+    coalesce: true
+    allowPolling: true
+    authRequired: false
+  - namespace: /reliable
+    topics: [alerts]
+    deliveryMode: AT_LEAST_ONCE
+    overflowAction: REJECT_NEW
+    maxQueuedMessagesPerClient: 128
+    maxQueuedBytesPerClient: 1048576
+    ackTimeoutMs: 1500
+    maxRetries: 3
+    coalesce: false
+    allowPolling: true
+    authRequired: true
+    maxInFlight: 8
+  - namespace: /bulk
+    topics: [binary.blob]
+    deliveryMode: BEST_EFFORT
+    overflowAction: DROP_OLDEST
+    maxQueuedMessagesPerClient: 2
+    maxQueuedBytesPerClient: 10485760
+    ackTimeoutMs: 2000
+    maxRetries: 0
+    coalesce: false
+    allowPolling: false
+    authRequired: true
