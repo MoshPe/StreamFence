@@ -1,0 +1,46 @@
+name: Snapshot
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 25
+        uses: actions/setup-java@v4
+        with:
+          java-version: '25'
+          distribution: 'temurin'
+          server-id: github
+          server-username: GITHUB_ACTOR
+          server-password: GITHUB_TOKEN
+
+      - name: Set snapshot version
+        run: |
+          BASE=$(mvn -pl streamfence-core help:evaluate \
+              -Dexpression=project.version -q -DforceStdout | sed 's/-SNAPSHOT//')
+          mvn -pl streamfence-core versions:set \
+              -DnewVersion=${BASE}-SNAPSHOT \
+              -DgenerateBackupPoms=false
+
+      - name: Publish snapshot to GitHub Packages
+        run: |
+          mvn -pl streamfence-core \
+              --no-transfer-progress \
+              deploy \
+              -DskipTests \
+              -Dgpg.skip=true \
+              -Dcentral.publishing.skip=true \
+              -DaltDeploymentRepository=github::https://maven.pkg.github.com/${{ github.repository }}
+        env:
+          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
