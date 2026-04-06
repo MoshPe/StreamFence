@@ -18,6 +18,13 @@
 
     <description>Production-oriented plain Java Socket.IO server library.</description>
 
+    <distributionManagement>
+        <snapshotRepository>
+            <id>github</id>
+            <url>https://maven.pkg.github.com/MoshPe/StreamFence</url>
+        </snapshotRepository>
+    </distributionManagement>
+
     <dependencies>
         <dependency>
             <groupId>com.corundumstudio.socketio</groupId>

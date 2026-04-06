@@ -40,8 +40,7 @@ jobs:
               deploy \
               -DskipTests \
               -Dgpg.skip=true \
-              -Dcentral.publishing.skip=true \
-              -DaltDeploymentRepository=github::https://maven.pkg.github.com/${{ github.repository }}
+              -Dcentral.publishing.skip=true
         env:
           GITHUB_ACTOR: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
