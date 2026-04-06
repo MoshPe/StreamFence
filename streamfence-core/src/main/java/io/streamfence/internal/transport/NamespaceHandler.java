@@ -120,8 +120,8 @@ public final class NamespaceHandler {
         sessionRegistry.register(sessionState);
         metrics.recordConnect(namespace);
         eventPublisher.clientConnected(namespace, client.getSessionId().toString(), String.valueOf(client.getTransport()), decision.principal());
-        LOG.info("event=connect namespace={} clientId={} transport={} principal={}",
-                namespace, client.getSessionId(), client.getTransport(), decision.principal());
+        LOG.info("event=connect namespace={} clientId={} transport={}",
+                namespace, client.getSessionId(), client.getTransport());
     }
 
     private void onDisconnect(SocketIOClient client) {
