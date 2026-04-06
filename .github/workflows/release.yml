@@ -27,6 +27,11 @@ jobs:
           gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
           gpg-passphrase: GPG_PASSPHRASE
 
+      - name: Set release version from tag
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          mvn versions:set -DnewVersion=${VERSION} -DgenerateBackupPoms=false -N
+
       - name: Build and publish streamfence-core to Maven Central
         env:
           OSSRH_USERNAME: ${{ secrets.OSSRH_USERNAME }}
@@ -53,3 +58,17 @@ jobs:
             streamfence-core/target/streamfence-core-${{ steps.version.outputs.VERSION }}.jar
             streamfence-core/target/streamfence-core-${{ steps.version.outputs.VERSION }}-sources.jar
             streamfence-core/target/streamfence-core-${{ steps.version.outputs.VERSION }}-javadoc.jar
+
+      - name: Bump to next SNAPSHOT on main
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
+          NEXT="${MAJOR}.${MINOR}.$((PATCH + 1))-SNAPSHOT"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          git checkout main
+          mvn versions:set -DnewVersion=${NEXT} -DgenerateBackupPoms=false -N
+          git add pom.xml
+          git commit -m "chore: bump version to ${NEXT} [skip ci]"
+          git push origin main
