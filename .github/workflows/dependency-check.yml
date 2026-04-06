@@ -10,6 +10,7 @@ jobs:
   owasp:
     name: OWASP Dependency Check
     runs-on: ubuntu-latest
+    environment: MavenCentralDeploy
     permissions:
       contents: read
       security-events: write
