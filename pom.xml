@@ -15,20 +15,20 @@
 
     <url>https://github.com/MoshPe/StreamFence</url>
 
-<licenses>
-  <license>
-    <name>Apache License, Version 2.0</name>
-    <url>https://www.apache.org/licenses/LICENSE-2.0</url>
-    <distribution>repo</distribution>
-  </license>
-</licenses>
+    <licenses>
+        <license>
+            <name>Apache License, Version 2.0</name>
+            <url>https://www.apache.org/licenses/LICENSE-2.0</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
 
-<scm>
-  <connection>scm:git:git://github.com/MoshPe/StreamFence.git</connection>
-  <developerConnection>scm:git:ssh://github.com/MoshPe/StreamFence.git</developerConnection>
-  <url>https://github.com/MoshPe/StreamFence</url>
-  <tag>HEAD</tag>
-</scm>
+    <scm>
+        <connection>scm:git:git://github.com/MoshPe/StreamFence.git</connection>
+        <developerConnection>scm:git:ssh://github.com/MoshPe/StreamFence.git</developerConnection>
+        <url>https://github.com/MoshPe/StreamFence</url>
+        <tag>HEAD</tag>
+    </scm>
 
     <modules>
         <module>streamfence-core</module>
@@ -177,30 +177,32 @@
                     <artifactId>exec-maven-plugin</artifactId>
                     <version>${exec-maven-plugin.version}</version>
                 </plugin>
-                     <plugin>
-                             <groupId>org.sonatype.central</groupId>
-                             <artifactId>central-publishing-maven-plugin</artifactId>
-                             <version>0.7.0</version>
-                             <extensions>true</extensions>
-                             <configuration>
-                               <publishingServerId>central</publishingServerId>
-                               <autoPublish>true</autoPublish>
-                               <waitUntil>published</waitUntil>
-                             </configuration>
-                  </plugin>
-                  
-                  <plugin>
+                <plugin>
+                    <groupId>org.sonatype.central</groupId>
+                    <artifactId>central-publishing-maven-plugin</artifactId>
+                    <version>0.7.0</version>
+                    <extensions>true</extensions>
+                    <configuration>
+                        <publishingServerId>central</publishingServerId>
+                        <autoPublish>true</autoPublish>
+                        <waitUntil>published</waitUntil>
+                    </configuration>
+                </plugin>
+
+                <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-gpg-plugin</artifactId>
                     <version>3.2.7</version>
                     <executions>
-                      <execution>
-                        <id>sign-artifacts</id>
-                        <phase>verify</phase>
-                        <goals><goal>sign</goal></goals>
-                      </execution>
+                        <execution>
+                            <id>sign-artifacts</id>
+                            <phase>verify</phase>
+                            <goals>
+                                <goal>sign</goal>
+                            </goals>
+                        </execution>
                     </executions>
-                  </plugin>
+                </plugin>
             </plugins>
         </pluginManagement>
     </build>
