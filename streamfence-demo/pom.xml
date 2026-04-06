@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>io.streamfence</groupId>
+        <groupId>io.github.moshpe</groupId>
         <artifactId>streamfence</artifactId>
         <version>1.0.1</version>
         <relativePath>../pom.xml</relativePath>
@@ -20,7 +20,7 @@
 
     <dependencies>
         <dependency>
-            <groupId>io.streamfence</groupId>
+            <groupId>io.github.moshpe</groupId>
             <artifactId>streamfence-core</artifactId>
             <version>${project.version}</version>
         </dependency>
