@@ -1,7 +1,7 @@
 # StreamFence - Embeddable Java Socket.IO Server Library
 
-[![CI](https://github.com/MoshPe/StreamFence/actions/workflows/ci.yml/badge.svg)](https://github.com/MoshPe/StreamFence/actions/workflows/ci.yml)
-[![CodeQL](https://github.com/MoshPe/StreamFence/actions/workflows/codeql.yml/badge.svg)](https://github.com/MoshPe/StreamFence/actions/workflows/codeql.yml)
+[![CI](https://github.com/MoshPe/StreamFence/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/MoshPe/StreamFence/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/MoshPe/StreamFence/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/MoshPe/StreamFence/actions/workflows/codeql.yml)
 [![codecov](https://codecov.io/gh/MoshPe/StreamFence/branch/main/graph/badge.svg)](https://codecov.io/gh/MoshPe/StreamFence)
 [![Maven Central](https://img.shields.io/maven-central/v/io.github.moshpe/streamfence-core.svg)](https://central.sonatype.com/artifact/io.github.moshpe/streamfence-core)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
