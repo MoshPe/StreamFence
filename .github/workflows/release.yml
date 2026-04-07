@@ -10,7 +10,8 @@ jobs:
     runs-on: ubuntu-latest
     environment: MavenCentralDeploy
     permissions:
-      contents: write   # needed to create GitHub Release
+      contents: write        # needed to create GitHub Release and push branch
+      pull-requests: write   # needed to open the post-release version bump PR
 
     steps:
       - name: Checkout
@@ -52,15 +53,24 @@ jobs:
           generate_release_notes: true
 
       - name: Bump to next SNAPSHOT on main
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           VERSION=${GITHUB_REF_NAME#v}
           IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
           NEXT="${MAJOR}.${MINOR}.$((PATCH + 1))-SNAPSHOT"
+          BRANCH="chore/bump-version-${NEXT}"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git fetch origin main
-          git checkout main
+          git checkout -b ${BRANCH} origin/main
           mvn versions:set -DnewVersion=${NEXT} -DgenerateBackupPoms=false -N
           git add pom.xml
           git commit -m "chore: bump version to ${NEXT} [skip ci]"
-          git push origin main
+          git push origin ${BRANCH}
+          gh pr create \
+            --title "chore: bump version to ${NEXT}" \
+            --body "Automated version bump after release \`${GITHUB_REF_NAME}\`." \
+            --base main \
+            --head ${BRANCH} \
+            --label "dependencies"
