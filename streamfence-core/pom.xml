@@ -16,7 +16,7 @@
 
     <name>streamfence-core</name>
 
-    <description>Production-oriented plain Java Socket.IO server library.</description>
+    <description>Production-ready delivery control for Java Socket.IO with backpressure, retries, queue protection, and benchmark-ready presets.</description>
 
     <scm>
         <connection>scm:git:git://github.com/MoshPe/StreamFence.git</connection>
