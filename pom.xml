@@ -11,7 +11,7 @@
 
     <name>streamfence-parent</name>
 
-    <description>Parent POM for the streamfence library and demo modules.</description>
+    <description>Production-ready delivery control for Java Socket.IO with backpressure, retries, queue protection, and benchmark-ready presets.</description>
 
     <url>https://github.com/MoshPe/StreamFence</url>
 
