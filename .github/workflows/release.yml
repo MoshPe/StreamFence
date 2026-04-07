@@ -44,20 +44,12 @@ jobs:
               clean deploy \
               -DskipTests
 
-      - name: Extract version from tag
-        id: version
-        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
-
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           name: StreamFence ${{ github.ref_name }}
           tag_name: ${{ github.ref_name }}
           generate_release_notes: true
-          files: |
-            streamfence-core/target/streamfence-core-${{ steps.version.outputs.VERSION }}.jar
-            streamfence-core/target/streamfence-core-${{ steps.version.outputs.VERSION }}-sources.jar
-            streamfence-core/target/streamfence-core-${{ steps.version.outputs.VERSION }}-javadoc.jar
 
       - name: Bump to next SNAPSHOT on main
         run: |

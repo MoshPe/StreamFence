@@ -18,6 +18,13 @@
 
     <description>Production-oriented plain Java Socket.IO server library.</description>
 
+    <scm>
+        <connection>scm:git:git://github.com/MoshPe/StreamFence.git</connection>
+        <developerConnection>scm:git:ssh://github.com/MoshPe/StreamFence.git</developerConnection>
+        <url>https://github.com/MoshPe/StreamFence</url>
+        <tag>HEAD</tag>
+    </scm>
+
     <distributionManagement>
         <snapshotRepository>
             <id>github</id>
