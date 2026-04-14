@@ -17,6 +17,7 @@ target/
 .claude
 .codex
 docs
+.worktrees/
 
 ### Eclipse ###
 .apt_generated
