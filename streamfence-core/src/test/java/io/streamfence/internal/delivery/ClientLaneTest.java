@@ -88,6 +88,29 @@ class ClientLaneTest {
         assertThat(lane.snapshot()).extracting(LaneEntry::messageId).containsExactly("m3");
     }
 
+    @Test
+    void spillToDiskAcceptsOverflowAfterTheMemoryQueueFills() {
+        ClientLane lane = new ClientLane(policy(OverflowAction.SPILL_TO_DISK, 2, 64, false));
+
+        assertThat(lane.enqueue(message("m1", 32, "prices")).status()).isEqualTo(EnqueueStatus.ACCEPTED);
+        assertThat(lane.enqueue(message("m2", 32, "prices")).status()).isEqualTo(EnqueueStatus.ACCEPTED);
+        EnqueueResult overflowResult = lane.enqueue(message("m3", 32, "prices"));
+
+        assertThat(overflowResult.status()).isEqualTo(EnqueueStatus.ACCEPTED);
+        assertThat(drainIds(lane)).containsExactly("m1", "m2", "m3");
+    }
+
+    @Test
+    void spillToDiskStillRejectsMessagesThatExceedThePerMessageByteLimit() {
+        ClientLane lane = new ClientLane(policy(OverflowAction.SPILL_TO_DISK, 4, 48, false));
+
+        EnqueueResult result = lane.enqueue(message("too-large", 64, "prices"));
+
+        assertThat(result.status()).isEqualTo(EnqueueStatus.REJECTED);
+        assertThat(result.reason()).contains("byte limit");
+        assertThat(lane.snapshot()).isEmpty();
+    }
+
     private static TopicPolicy policy(OverflowAction overflowAction, int maxCount, long maxBytes, boolean coalesce) {
         return new TopicPolicy(
                 "/non-reliable",
@@ -102,6 +125,15 @@ class ClientLaneTest {
                 true,
                 false,
                 1);
+    }
+
+    private static java.util.List<String> drainIds(ClientLane lane) {
+        java.util.List<String> ids = new java.util.ArrayList<>();
+        LaneEntry entry;
+        while ((entry = lane.poll()) != null) {
+            ids.add(entry.messageId());
+        }
+        return ids;
     }
 
     private static LaneEntry message(String messageId, long bytes, String coalesceKey) {

@@ -77,7 +77,8 @@ class BackpressureIntegrationTest {
                         "/bulk", new NamespaceConfig(false)
                 ),
                 List.of(rejectTopic, dropTopic, coalesceTopic),
-                "127.0.0.1", managementPort, 10000, 0, 60000, 20);
+                "127.0.0.1", managementPort, 10000, 0, 60000, 20,
+                io.streamfence.SocketIoServerSpec.DEFAULT_SPILL_ROOT_PATH);
 
         try (SocketServerBootstrap bootstrap = new SocketServerBootstrap(config)) {
             bootstrap.start();

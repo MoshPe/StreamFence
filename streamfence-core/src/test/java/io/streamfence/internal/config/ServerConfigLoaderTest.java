@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Comparator;
+import java.util.Objects;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 
@@ -85,6 +86,13 @@ class ServerConfigLoaderTest {
         } finally {
             deleteRecursively(tempDir);
         }
+    }
+
+    @Test
+    void loadsSpillToDiskConfigurationWithSpillRootPath() throws IOException {
+        ServerConfig config = ServerConfigLoader.load(spillConfigPath());
+
+        assertThat(config.spillRootPath()).isEqualTo(".streamfence-spill");
     }
 
     @Test
@@ -372,6 +380,16 @@ class ServerConfigLoaderTest {
         Path path = tempDir.resolve("application.yaml");
         Files.writeString(path, content);
         return path;
+    }
+
+    private static Path spillConfigPath() {
+        try {
+            return Path.of(Objects.requireNonNull(
+                    ServerConfigLoaderTest.class.getResource("/spill-to-disk-config.yaml"))
+                    .toURI());
+        } catch (Exception exception) {
+            throw new AssertionError("spill-to-disk-config.yaml must be available on the test classpath", exception);
+        }
     }
 
     private static void deleteRecursively(Path root) {

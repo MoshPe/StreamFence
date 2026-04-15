@@ -45,6 +45,7 @@ public final class SocketIoServerBuilder {
     private int senderThreads;
     private int authRejectWindowMs = 60_000;
     private int authRejectMaxPerWindow = 20;
+    private String spillRootPath = SocketIoServerSpec.DEFAULT_SPILL_ROOT_PATH;
     private TokenValidator tokenValidator;
     private final List<ServerEventListener> listeners = new ArrayList<>();
 
@@ -293,6 +294,18 @@ public final class SocketIoServerBuilder {
     }
 
     /**
+     * Sets the root directory used for spill-to-disk queue storage.
+     *
+     * @param spillRootPath the spill directory path; blank values fall back to the default
+     *                      {@code ".streamfence-spill"}
+     * @return this builder
+     */
+    public SocketIoServerBuilder spillRootPath(String spillRootPath) {
+        this.spillRootPath = spillRootPath;
+        return this;
+    }
+
+    /**
      * Sets a custom {@link TokenValidator} for {@link AuthMode#TOKEN} authentication.
      * When provided, this validator takes precedence over any static token map.
      *
@@ -384,6 +397,7 @@ public final class SocketIoServerBuilder {
         this.senderThreads = spec.senderThreads();
         this.authRejectWindowMs = spec.authRejectWindowMs();
         this.authRejectMaxPerWindow = spec.authRejectMaxPerWindow();
+        this.spillRootPath = spec.spillRootPath();
         // Intentionally do NOT overwrite listeners or tokenValidator — those
         // cannot be expressed in YAML/JSON and must be set programmatically.
         return this;
@@ -417,6 +431,7 @@ public final class SocketIoServerBuilder {
                 senderThreads,
                 authRejectWindowMs,
                 authRejectMaxPerWindow,
+                spillRootPath,
                 tokenValidator,
                 listeners
         );

@@ -44,6 +44,7 @@ public final class SocketIoServerSpecMapper {
                 config.senderThreads(),
                 config.authRejectWindowMs(),
                 config.authRejectMaxPerWindow(),
+                config.spillRootPath(),
                 null,
                 List.of()
         );
@@ -92,7 +93,8 @@ public final class SocketIoServerSpecMapper {
                 spec.shutdownDrainMs(),
                 spec.senderThreads(),
                 spec.authRejectWindowMs(),
-                spec.authRejectMaxPerWindow()
+                spec.authRejectMaxPerWindow(),
+                spec.spillRootPath()
         );
     }
 

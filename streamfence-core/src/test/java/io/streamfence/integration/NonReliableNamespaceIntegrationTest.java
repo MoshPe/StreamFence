@@ -25,6 +25,7 @@ class NonReliableNamespaceIntegrationTest {
     @Test
     void nonReliableNamespaceDeliversPublishedMessageToSubscriber() throws Exception {
         int port = nextPort();
+        String spillRootPath = io.streamfence.SocketIoServerSpec.DEFAULT_SPILL_ROOT_PATH;
         ServerConfig config = new ServerConfig(
                 "127.0.0.1",
                 port,
@@ -56,7 +57,14 @@ class NonReliableNamespaceIntegrationTest {
                         false,
                         true,
                         false,
-                        1))
+                        1)),
+                "0.0.0.0",
+                0,
+                10_000,
+                0,
+                60_000,
+                20,
+                spillRootPath
         );
 
         CountDownLatch messageLatch = new CountDownLatch(1);

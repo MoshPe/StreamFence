@@ -80,6 +80,7 @@ class TopicDispatcherTest {
 
         private DispatcherFixture(int maxInFlight) {
             this.topicPolicy = reliablePolicy(maxInFlight);
+            String spillRootPath = io.streamfence.SocketIoServerSpec.DEFAULT_SPILL_ROOT_PATH;
             ServerConfig serverConfig = new ServerConfig(
                     "127.0.0.1",
                     9092,
@@ -99,7 +100,14 @@ class TopicDispatcherTest {
                             "/reliable", new NamespaceConfig(false),
                             "/bulk", new NamespaceConfig(false)
                     ),
-                    List.of(topicPolicy)
+                    List.of(topicPolicy),
+                    "0.0.0.0",
+                    0,
+                    10_000,
+                    0,
+                    60_000,
+                    20,
+                    spillRootPath
             );
             this.topicRegistry = new TopicRegistry(serverConfig);
             this.sessionRegistry = new ClientSessionRegistry();
