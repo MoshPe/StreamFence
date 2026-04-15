@@ -96,7 +96,7 @@ class ClientLaneTest {
         assertThat(lane.enqueue(message("m2", 32, "prices")).status()).isEqualTo(EnqueueStatus.ACCEPTED);
         EnqueueResult overflowResult = lane.enqueue(message("m3", 32, "prices"));
 
-        assertThat(overflowResult.status()).isEqualTo(EnqueueStatus.ACCEPTED);
+        assertThat(overflowResult.status()).isEqualTo(EnqueueStatus.SPILLED);
         assertThat(drainIds(lane)).containsExactly("m1", "m2", "m3");
     }
 

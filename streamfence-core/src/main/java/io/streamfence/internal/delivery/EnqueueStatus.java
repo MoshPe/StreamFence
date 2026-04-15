@@ -5,5 +5,7 @@ public enum EnqueueStatus {
     REJECTED,
     DROPPED_OLDEST_AND_ACCEPTED,
     COALESCED,
-    REPLACED_SNAPSHOT
+    REPLACED_SNAPSHOT,
+    /** Message accepted but written to disk because the in-memory queue was full. */
+    SPILLED
 }

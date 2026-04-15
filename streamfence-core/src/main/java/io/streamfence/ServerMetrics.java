@@ -171,6 +171,16 @@ public final class ServerMetrics {
     }
 
     /**
+     * Records a message spilled to disk due to {@link OverflowAction#SPILL_TO_DISK}.
+     *
+     * @param namespace the namespace path
+     * @param topic     the topic name
+     */
+    public void recordSpill(String namespace, String topic) {
+        counter("wsserver.messages.spilled", namespace, topic, null).increment();
+    }
+
+    /**
      * Records an authentication rejection on {@code namespace}.
      *
      * @param namespace the namespace path

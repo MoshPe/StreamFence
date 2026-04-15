@@ -27,9 +27,20 @@ public final class ClientLane {
     private int inFlightCount;
 
     public ClientLane(TopicPolicy topicPolicy) {
+        this(topicPolicy, null);
+    }
+
+    /**
+     * Creates a lane with an explicit spill root directory. When
+     * {@code spillRoot} is non-null and the overflow action is
+     * {@link OverflowAction#SPILL_TO_DISK}, spill files land under
+     * {@code spillRoot/namespace/topic/clientId} so the server can clean
+     * them up scoped to the namespace and topic on disconnect.
+     */
+    public ClientLane(TopicPolicy topicPolicy, Path spillRoot) {
         this.topicPolicy = Objects.requireNonNull(topicPolicy, "topicPolicy");
         this.spillFileStore = topicPolicy.overflowAction() == OverflowAction.SPILL_TO_DISK
-                ? createSpillFileStore()
+                ? createSpillFileStore(spillRoot)
                 : null;
     }
 
@@ -218,6 +229,22 @@ public final class ClientLane {
         return topicPolicy;
     }
 
+    /**
+     * Releases all resources held by this lane, including any spill files on disk.
+     * Must be called when the lane is permanently removed (client disconnect or
+     * explicit unsubscribe).
+     */
+    public synchronized void close() {
+        if (spillFileStore != null) {
+            spillFileStore.cleanup();
+        }
+        queue.clear();
+        queuedBytes = 0;
+        inFlightCount = 0;
+        spilledCount = 0;
+        spilledBytes = 0;
+    }
+
     private EnqueueResult replaceSnapshot(LaneEntry laneEntry) {
         boolean replaced = !queue.isEmpty() || spilledCount > 0;
         queue.clear();
@@ -286,7 +313,7 @@ public final class ClientLane {
         spillFileStore.append(laneEntry);
         spilledCount++;
         spilledBytes += laneEntry.estimatedBytes();
-        return new EnqueueResult(EnqueueStatus.ACCEPTED, "spilled");
+        return new EnqueueResult(EnqueueStatus.SPILLED, "spilled to disk");
     }
 
     private void loadSpilledEntriesIfNeeded() {
@@ -320,9 +347,18 @@ public final class ClientLane {
         return "Queue policy rejected message";
     }
 
-    private static SpillFileStore createSpillFileStore() {
+    private SpillFileStore createSpillFileStore(Path spillRoot) {
         try {
-            Path rootDirectory = Files.createTempDirectory("streamfence-spill-");
+            Path rootDirectory;
+            if (spillRoot != null) {
+                // Scope the spill directory under namespace/topic so cleanup can be
+                // performed per-namespace without walking unrelated trees.
+                String safeName = topicPolicy.namespace().replace("/", "_").replace("\\", "_");
+                rootDirectory = spillRoot.resolve(safeName).resolve(topicPolicy.topic());
+                Files.createDirectories(rootDirectory);
+            } else {
+                rootDirectory = Files.createTempDirectory("streamfence-spill-");
+            }
             return new SpillFileStore(rootDirectory);
         } catch (IOException exception) {
             throw new IllegalStateException("Failed to initialize spill store", exception);
