@@ -8,7 +8,6 @@ import io.streamfence.demo.runtime.DemoControlCommand;
 import io.streamfence.demo.runtime.DemoEventWriter;
 import java.lang.reflect.Field;
 import java.net.URI;
-import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
@@ -134,10 +133,7 @@ class DemoProcessManagerTest {
         DemoProcessManager manager = new DemoProcessManager(List.of());
         DemoChildProcess child = DemoChildProcess.start(
                 "server",
-                List.of(
-                        Path.of(System.getenv("WINDIR"), "System32", "WindowsPowerShell", "v1.0", "powershell.exe").toString(),
-                        "-Command",
-                        "Start-Sleep -Milliseconds 750"),
+                DemoTestShell.silentShortLived(),
                 line -> {
                 });
         injectChild(manager, "server", child);
