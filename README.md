@@ -1,4 +1,4 @@
-# StreamFence - Embeddable Java Socket.IO Server Library
+# StreamFence — Embeddable Java Socket.IO Server Library
 
 <p align="center">
   <img src="assets/logo.png" alt="StreamFence logo" width="320">
@@ -14,339 +14,519 @@
   <a href="https://www.apache.org/licenses/LICENSE-2.0"><img src="https://img.shields.io/badge/license-Apache%202.0-blue.svg" alt="License"></a>
 </p>
 
+Embeddable Java Socket.IO server with per-client backpressure, delivery guarantees, spill-to-disk overflow, Prometheus metrics, and YAML-driven configuration.
 
-## Why StreamFence
+---
 
-`StreamFence` is an embeddable Java Socket.IO server library built on `netty-socketio` for teams that need live topic delivery with bounded memory, explicit backpressure behavior, and optional reliable delivery.
+## Table of contents
 
-It is designed for cases where "just push events" is not enough:
+- [What it is](#what-it-is)
+- [When to use one server vs two](#when-to-use-one-server-vs-two)
+- [Install](#install)
+- [Quick start](#quick-start)
+- [Client-side protocol](#client-side-protocol)
+- [Config file loading](#config-file-loading)
+- [Delivery modes](#delivery-modes)
+- [Overflow policies](#overflow-policies)
+- [Spill to disk](#spill-to-disk)
+- [Authentication](#authentication)
+- [TLS](#tls)
+- [Metrics and management](#metrics-and-management)
+- [Event listeners](#event-listeners)
+- [Server API reference](#server-api-reference)
+- [NamespaceSpec builder](#namespacespec-builder)
+- [API reference](#api-reference)
+- [Examples](#examples)
+- [Demo](#demo)
+- [Building](#building)
+- [Status / roadmap](#status--roadmap)
+- [License](#license)
 
-- some streams need raw throughput and freshness
-- some streams need message acknowledgement and retries
-- some clients are slow and must not be allowed to grow queues without bound
-- operators need metrics and hooks that explain what the server is doing under pressure
+---
+
+## What it is
+
+StreamFence is an embeddable Java library that wraps [netty-socketio](https://github.com/mrniko/netty-socketio) with production-grade delivery control. You get:
+
+- **Per-client bounded queues** — every client/topic lane has hard message-count and byte-count limits, so a slow client cannot grow a queue without bound and threaten the JVM heap.
+- **Five overflow policies** — choose what to do when a client cannot keep up: reject new messages, drop the oldest, coalesce to the newest, keep only the latest snapshot, or spill excess entries to disk and replay them later.
+- **Two delivery modes** — `BEST_EFFORT` for low-overhead live feeds; `AT_LEAST_ONCE` for business-critical delivery with automatic retry, per-message acknowledgement tracking, and a pipelined in-flight window.
+- **Spill-to-disk overflow** — when a client falls behind but you cannot afford to lose messages, `SPILL_TO_DISK` writes overflow entries atomically to disk, replays them in FIFO order when the in-memory queue drains, and cleans up on disconnect.
+- **Prometheus metrics** — all counters (connections, publishes, overflow, retries, drops, spills) are scraped over a dedicated management HTTP port.
+- **YAML / JSON configuration** — load a `SocketIoServerSpec` from a file and override any field via the fluent builder before `buildServer()`.
 
 The project is a two-module Maven build:
 
-- `streamfence-core` - the library. Public API lives in the flat `io.streamfence` package. Internals live under `io.streamfence.internal.*` and are not stable API.
-- `streamfence-demo` - a runnable multi-process showcase that starts a launcher, a demo server, automated client swarms, and a browser dashboard.
+- `streamfence-core` — the library. Public API lives in `io.streamfence`; internals live under `io.streamfence.internal.*` and are not stable API.
+- `streamfence-demo` — a runnable multi-process showcase with a browser dashboard.
 
-Public API surface:
+---
 
-- `SocketIoServer`, `SocketIoServerBuilder`, `SocketIoServerSpec`
-- `NamespaceSpec`
-- `AuthMode`, `AuthDecision`, `TokenValidator`
-- `DeliveryMode`, `OverflowAction`, `TransportMode`, `TLSConfig`
-- `ServerEventListener` and its event records
-- `ServerMetrics`
+## When to use one server vs two
 
-Anything in `io.streamfence.internal.*` is subject to change without notice.
+| Use case | Recommendation |
+|----------|----------------|
+| All topics share the same auth and transport config | One server, multiple namespaces |
+| Feed topics (BEST_EFFORT) and control topics (AT_LEAST_ONCE) need independent ports or scaling | Two servers on separate ports |
+| TLS and plaintext traffic on the same node | Two servers — one WSS, one WS |
+| Complete isolation of scrape endpoint per workload | Two servers, each with its own `managementPort` |
 
-## Quick Start - Code-First
+See [MixedWorkloadExample](streamfence-demo/src/main/java/io/streamfence/demo/examples/MixedWorkloadExample.java) for a runnable two-server setup.
+
+---
+
+## Install
+
+Add `streamfence-core` to your Maven project:
+
+```xml
+<dependency>
+    <groupId>io.github.moshpe</groupId>
+    <artifactId>streamfence-core</artifactId>
+    <version>1.0.1</version>
+</dependency>
+```
+
+Requires Java 25.
+
+---
+
+## Quick start
 
 ```java
-import io.streamfence.AuthMode;
-import io.streamfence.DeliveryMode;
-import io.streamfence.NamespaceSpec;
-import io.streamfence.OverflowAction;
-import io.streamfence.SocketIoServer;
-
-import java.util.List;
+import io.streamfence.*;
 import java.util.Map;
 
 try (SocketIoServer server = SocketIoServer.builder()
         .host("127.0.0.1")
         .port(9092)
-        .authMode(AuthMode.NONE)
         .namespace(NamespaceSpec.builder("/feed")
-                .authRequired(false)
+                .topic("prices")
                 .deliveryMode(DeliveryMode.BEST_EFFORT)
-                .overflowAction(OverflowAction.REJECT_NEW)
+                .overflowAction(OverflowAction.DROP_OLDEST)
                 .maxQueuedMessagesPerClient(64)
                 .maxQueuedBytesPerClient(524_288)
                 .ackTimeoutMs(1_000)
                 .maxRetries(0)
-                .coalesce(false)
-                .allowPolling(true)
-                .maxInFlight(1)
-                .topics(List.of("prices", "quotes"))
                 .build())
+        .managementPort(9093)
         .buildServer()) {
+
     server.start();
 
-    server.publish("/feed", "prices", Map.of("value", 42));
-    server.publishTo("/feed", "abc-123", "prices", Map.of("value", 99));
+    // Broadcast to all subscribers
+    server.publish("/feed", "prices", Map.of("bid", 100.0, "ask", 100.05));
+
+    // Send to one specific client
+    server.publishTo("/feed", "client-session-id", "prices", Map.of("bid", 99.5, "ask", 99.9));
 }
 ```
 
-## Quick Start - YAML / JSON Configuration
+---
 
-The library can also seed itself from YAML or JSON. Loaded values can still be overridden fluently before `buildServer()`.
+## Client-side protocol
+
+Connect to a namespace with the standard Socket.IO client, then use these events:
+
+### Subscribe
+
+```js
+socket.emit("subscribe", { topic: "prices" });
+socket.on("subscribed", msg => console.log("subscribed", msg));
+```
+
+### Receive messages
+
+```js
+socket.on("topic-message", envelope => {
+    const { metadata, payload } = envelope;
+    console.log(metadata.topic, payload);
+});
+```
+
+### Acknowledge (AT_LEAST_ONCE only)
+
+```js
+socket.on("topic-message", envelope => {
+    const { metadata, payload } = envelope;
+    if (metadata.ackRequired) {
+        socket.emit("ack", { topic: metadata.topic, messageId: metadata.messageId });
+    }
+});
+```
+
+### Unsubscribe
+
+```js
+socket.emit("unsubscribe", { topic: "prices" });
+socket.on("unsubscribed", msg => console.log("unsubscribed", msg));
+```
+
+Error responses:
+
+```js
+socket.on("error", ({ code, message }) => console.error(code, message));
+// Codes: AUTH_REJECTED, UNKNOWN_TOPIC, TRANSPORT_REJECTED
+```
+
+---
+
+## Config file loading
 
 ```java
-import io.streamfence.SocketIoServer;
-import io.streamfence.SocketIoServerSpec;
-
-import java.nio.file.Path;
-
+// From filesystem
 SocketIoServerSpec spec = SocketIoServerSpec.fromYaml(Path.of("config/application.yaml"));
 
+// From classpath resource
+SocketIoServerSpec spec = SocketIoServerSpec.fromClasspath("application.yaml");
+
+// Seed builder from file, then override individual fields
 try (SocketIoServer server = SocketIoServer.builder()
         .fromYaml(Path.of("config/application.yaml"))
-        .listener(new MyListener())
-        .port(9092)
+        .port(9192)          // override loaded port
+        .listener(myListener)
         .buildServer()) {
     server.start();
 }
-
-SocketIoServerSpec fromClasspath = SocketIoServerSpec.fromClasspath("application.yaml");
 ```
 
-Parse failures are wrapped in `IllegalArgumentException` and include the source path and, when available, the offending line number.
+Parse failures are wrapped in `IllegalArgumentException` and include the source path and — when Jackson provides it — the offending line number.
 
-## Delivery presets
+### YAML schema
 
-The demo ships five reference presets. They are not special runtime-only modes; they are bundled examples of normal StreamFence configuration and client behavior.
+```yaml
+host: 0.0.0.0
+port: 9092
+transportMode: WS          # WS or WSS
+managementHost: 0.0.0.0
+managementPort: 9093       # 0 = disabled
+shutdownDrainMs: 10000
+senderThreads: 0           # 0 = auto (max(4, availableProcessors))
+pingIntervalMs: 20000
+pingTimeoutMs: 40000
+maxFramePayloadLength: 5242880
+maxHttpContentLength: 5242880
+compressionEnabled: true
+authMode: NONE             # NONE or TOKEN
+staticTokens:
+  my-client: secret-token
+spillRootPath: .streamfence-spill   # root dir for SPILL_TO_DISK lanes
+# tls:                     # required when transportMode: WSS
+#   certChainPemPath: /certs/cert.pem
+#   privateKeyPemPath: /certs/key.pem
+#   privateKeyPassword:
+#   keyStorePassword: changeit
+#   protocol: TLSv1.3
+namespaces:
+  /feed:
+    authRequired: false
+topicPolicies:
+  - namespace: /feed
+    topics: [prices, quotes]
+    deliveryMode: BEST_EFFORT
+    overflowAction: DROP_OLDEST
+    maxQueuedMessagesPerClient: 64
+    maxQueuedBytesPerClient: 524288
+    ackTimeoutMs: 1000
+    maxRetries: 0
+    coalesce: false
+    allowPolling: true
+    authRequired: false
+    maxInFlight: 1
+```
 
-- `throughput` - high-volume best-effort traffic on `/non-reliable`, tuned to keep updates flowing with low overhead.
-- `realtime` - websocket-only live updates on `/non-reliable`, tuned for freshness over backlog.
-- `reliable` - authenticated `AT_LEAST_ONCE` delivery on `/reliable`, with acknowledgements and pipelined in-flight reliable messages.
-- `bulk` - large payload flow on `/bulk`, tuned to show transfer behavior and payload metadata under load.
-- `pressure` - authenticated reliable traffic with tight queues and delayed acknowledgements, tuned to surface retries and overflow quickly.
+---
 
-Use these presets as examples of intent:
+## Delivery modes
 
-- throughput-first live feeds
-- freshness-first realtime updates
-- durable client delivery with ack/retry
-- large payload transfer
-- pressure testing and operational rehearsal
+| Mode | Behavior | Use when |
+|------|----------|----------|
+| `BEST_EFFORT` | No ack tracking. Messages may be dropped or coalesced per overflow policy. Low overhead. | Live feeds, tickers, presence updates |
+| `AT_LEAST_ONCE` | Each message carries a `messageId`. Server retries until the client sends `ack` or retry budget is exhausted. | Order events, alerts, durable command delivery |
 
-## Reliability model
+`AT_LEAST_ONCE` constraints:
 
-StreamFence supports two delivery modes per namespace:
-
-- `BEST_EFFORT`
-- `AT_LEAST_ONCE`
-
-`BEST_EFFORT` prioritizes low overhead and freshness. Messages may be dropped or coalesced according to overflow policy. There is no per-message acknowledgement tracking.
-
-`AT_LEAST_ONCE` assigns a `messageId` to each outbound topic message, marks the message as ack-required, waits for the client to send `ack`, and retries until the retry budget is exhausted.
-
-Protocol shape:
-
-- inbound events: `subscribe`, `unsubscribe`, `publish`, `ack`
-- outbound events: `topic-message`, `subscribed`, `unsubscribed`, `error`
-- outbound `topic-message` payload: `{ metadata, payload }`
-
-For reliable delivery:
-
-- `metadata.messageId` identifies the delivery attempt chain
-- `metadata.ackRequired` tells the client that it must acknowledge the message
-- the client must emit `ack { topic, messageId }`
-- if the ack is missing past `ackTimeoutMs`, the server retries up to `maxRetries`
-
-What StreamFence does not provide:
-
-- exact-once delivery
-- durable persistent queues
-- cross-node coordination for retries or queue state
-
-Current reliable state is in-memory and single-node.
-
-## Backpressure and overflow behavior
-
-Every client/topic lane is bounded by:
-
-- `maxQueuedMessagesPerClient`
-- `maxQueuedBytesPerClient`
-
-When a client cannot keep up, StreamFence applies the configured `OverflowAction`:
-
-- `REJECT_NEW` - reject newly enqueued messages once the lane is full
-- `DROP_OLDEST` - drop older queued messages to admit fresher ones
-- `COALESCE` - collapse queued snapshots for the same topic into the newest state
-- `SNAPSHOT_ONLY` - keep the latest snapshot-oriented state instead of retaining every intermediate update
-- `SPILL_TO_DISK` - reserved policy surface for overflow strategies beyond in-memory queuing
-
-Practical guidance:
-
-- use `REJECT_NEW` when order and explicit rejection matter more than freshness
-- use `DROP_OLDEST` when freshness matters more than historical completeness
-- use `COALESCE` or snapshot-oriented policies for state feeds where only the newest value matters
-
-For `AT_LEAST_ONCE` namespaces, the configuration is tighter by design:
-
-- overflow must be `REJECT_NEW`
-- coalescing is not allowed
+- `overflowAction` must be `REJECT_NEW`
+- `coalesce` must be `false`
 - `maxRetries` must be positive
-- `maxInFlight` cannot exceed the per-client queued message bound
+- `maxInFlight` cannot exceed `maxQueuedMessagesPerClient`
 
-## Client safety and writability
+---
 
-Clients are expected to behave safely against the server's delivery model.
+## Overflow policies
 
-Subscription and publish safety:
+| Policy | When full... | Best for |
+|--------|-------------|----------|
+| `REJECT_NEW` | Incoming message is dropped; overflow counter incremented | `AT_LEAST_ONCE`; any topic where queue order must be preserved |
+| `DROP_OLDEST` | Oldest queued message is removed to admit the new one | Fast-moving feeds where freshness beats completeness |
+| `COALESCE` | New message replaces an existing queued message with the same coalesce key | State feeds (tickers, presence) where only latest value matters |
+| `SNAPSHOT_ONLY` | Queue is replaced with just the latest message | Portfolio snapshots, single-value feeds |
+| `SPILL_TO_DISK` | Excess messages are written atomically to disk and replayed later | Burst absorption where no message may be lost but memory is bounded |
 
-- subscribe only to known topics in the namespace
-- supply a token when the namespace requires auth
-- do not assume polling is always allowed; some namespaces require websocket-capable transport
-- expect `error` events for unknown topics, rejected auth, or transport mismatch
+---
 
-Reliable client behavior:
+## Spill to disk
 
-- when `ackRequired=true`, the client must send `ack { topic, messageId }`
-- delaying or omitting ack causes retries
-- under sustained lag, reliable queues can fill and new messages can be rejected
+`SPILL_TO_DISK` extends the in-memory queue with a file-backed overflow tier:
 
-Best-effort client behavior:
+1. When the in-memory queue (`maxQueuedMessagesPerClient`) is full, new messages are written as atomic temp-then-rename files under `spillRootPath/{namespace}/{topic}/`.
+2. When the in-memory queue drains below capacity, spilled entries are loaded back from disk in FIFO order and queued for delivery.
+3. On client disconnect or unsubscribe, spill files for that client's lanes are deleted.
 
-- no ack is required
-- under pressure, the client may observe drops or coalesced state according to policy
-
-"Writability" in StreamFence is practical rather than magical: a client is considered healthy only while its per-topic lane stays within queue bounds and the transport can keep draining messages. When a client is too slow, StreamFence protects the server by applying bounded queue policy instead of allowing unbounded growth.
-
-## Configuration
-
-Configuration is namespace-centric. Each namespace defines one shared policy and a list of topic names. If two sets of topics need different delivery or backpressure behavior, model them as separate namespaces.
-
-Key namespace controls:
-
-- `deliveryMode`
-- `overflowAction`
-- `maxQueuedMessagesPerClient`
-- `maxQueuedBytesPerClient`
-- `ackTimeoutMs`
-- `maxRetries`
-- `coalesce`
-- `allowPolling`
-- `authRequired`
-- `maxInFlight`
-- `topics`
-
-Key server controls:
-
-- host and ports
-- transport mode and TLS
-- ping intervals and frame limits
-- auth mode and static tokens
-- sender thread count
-- management scrape endpoint
-- auth reject window controls
-
-The code-first builder and `SocketIoServerSpec` are equivalent ways to express the same runtime policy. The demo presets are simply packaged examples of those same knobs.
-
-## Observability Hooks
-
-Register listeners during build time:
+Configure it:
 
 ```java
-import io.streamfence.ServerEventListener;
-import io.streamfence.SocketIoServer;
-
-SocketIoServer server = SocketIoServer.builder()
-        .listener(new ServerEventListener() {
-            @Override public void onServerStarted(ServerStartedEvent event) { }
-            @Override public void onPublishAccepted(PublishAcceptedEvent event) { }
-            @Override public void onRetry(RetryEvent event) { }
-        })
-        .buildServer();
+SocketIoServer.builder()
+    .spillRootPath("/var/lib/streamfence-spill")
+    .namespace(NamespaceSpec.builder("/feed")
+        .topic("snapshot")
+        .deliveryMode(DeliveryMode.BEST_EFFORT)
+        .overflowAction(OverflowAction.SPILL_TO_DISK)
+        .maxQueuedMessagesPerClient(16)   // in-memory cap
+        .maxQueuedBytesPerClient(524_288)
+        .build())
+    .buildServer();
 ```
 
-Available callbacks cover:
+Metrics:
 
-- server lifecycle
-- client connect and disconnect
-- subscribe and unsubscribe
-- publish accepted and rejected
-- queue overflow
-- auth rejected
-- retry and retry exhausted
+- `wsserver_messages_spilled_total` — incremented each time a message is spilled to disk.
 
-Listener failures are isolated from the runtime so observability hooks do not bring down the server.
+Spilled files use an 8-digit zero-padded sequence number: `00000001.spill`. Temp files are named `.tmp` and renamed atomically; a crash during write leaves only a `.tmp` file that is ignored on recovery.
 
-## Metrics
+---
 
-`SocketIoServer.metrics()` exposes the Micrometer registry used by the runtime. StreamFence records:
+## Authentication
 
-- connection open and close counts
-- published message counts and bytes
-- received message counts and bytes
-- queue overflow counts
-- retry and retry-exhausted counts
-- dropped and coalesced message counts
+Set `authMode: TOKEN` and provide either static tokens or a custom `TokenValidator`:
 
-If `managementPort` is configured, the runtime also exposes a Prometheus scrape endpoint over HTTP. In the demo, the dashboard uses that scrape as the source of truth for throughput, connections, queue pressure, and retry signals.
+```java
+// Static token map
+SocketIoServer.builder()
+    .authMode(AuthMode.TOKEN)
+    .staticToken("my-client", "secret-token")
+    .buildServer();
 
-## Demo scenarios
+// Custom async validator
+SocketIoServer.builder()
+    .authMode(AuthMode.TOKEN)
+    .tokenValidator((token, namespace) ->
+        CompletableFuture.completedFuture(
+            token.equals("valid") ? AuthDecision.accept("user") : AuthDecision.reject("invalid token")))
+    .buildServer();
+```
 
-The demo is organized around five scenarios, each meant to prove a different part of the library:
+Clients supply the token in the Socket.IO handshake query string or in the subscribe request. A sliding-window rate limiter protects against brute-force auth attempts (`authRejectWindowMs`, `authRejectMaxPerWindow`).
 
-- `throughput` demonstrates high-volume best-effort delivery with `24` automated connections publishing every `100 ms`
-- `realtime` demonstrates websocket-only freshness-first delivery with `32` automated connections publishing every `50 ms`
-- `reliable` demonstrates authenticated `AT_LEAST_ONCE` delivery with `16` automated connections publishing every `150 ms`
-- `bulk` demonstrates authenticated large-payload transfer with `4` automated connections sending a `512 KiB` sample every `500 ms`
-- `pressure` demonstrates reliable retry and overflow behavior with `8` automated connections publishing every `100 ms` and delaying ack by `900 ms`
+---
 
-These scenarios are intended to show:
+## TLS
 
-- message rate under best-effort load
-- receive/send byte rates
-- retry behavior when acknowledgements are delayed
-- queue pressure signals such as overflow, dropped, and coalesced counters
-- how different namespace policies change the operational profile
+```yaml
+transportMode: WSS
+tls:
+  certChainPemPath: /certs/cert.pem
+  privateKeyPemPath: /certs/key.pem
+  privateKeyPassword: ""       # omit if key is unencrypted
+  keyStorePassword: changeit
+  protocol: TLSv1.3
+```
 
-## Benchmarking
+PEM files are reloaded automatically every 30 seconds so certificate rotation does not require a restart.
 
-The current supported benchmarking workflow is demo-driven rather than a dedicated microbenchmark harness.
+---
 
-Use the demo presets plus the management metrics/dashboard to run repeatable comparisons:
+## Metrics and management
 
-- use `throughput` to measure raw best-effort message rate
-- use `realtime` to compare freshness-oriented updates and websocket-only transport behavior
-- use `reliable` to measure stable acknowledged delivery under normal conditions
-- use `bulk` to compare large payload throughput and byte-rate behavior
-- use `pressure` to observe retry, overflow, and lag behavior under stress
+Access metrics programmatically or over HTTP:
 
-For each run, treat the Prometheus management scrape and dashboard counters as the source of truth:
+```java
+// Programmatic access
+String prometheusText = server.metrics().scrape();
+MeterRegistry registry = server.metrics().registry();
 
-- messages per second
-- send bytes per second
-- receive bytes per second
-- active clients
-- retries and retry exhaustion
-- queue overflow, dropped, and coalesced counts
+// HTTP scrape — configure managementPort to enable
+// GET http://127.0.0.1:9093/metrics
+```
 
-StreamFence does not currently ship a separate formal benchmark harness in this repo.
+### All counters and gauges
 
-## When to use each preset
+| Metric | Type | Description |
+|--------|------|-------------|
+| `wsserver_connections_active` | Gauge | Currently connected clients per namespace |
+| `wsserver_connections_opened_total` | Counter | Total connect events per namespace |
+| `wsserver_connections_closed_total` | Counter | Total disconnect events per namespace |
+| `wsserver_messages_published_total` | Counter | Messages broadcast per namespace/topic |
+| `wsserver_bytes_published_total` | Counter | Bytes broadcast per namespace/topic |
+| `wsserver_messages_received_total` | Counter | Inbound publish events from clients |
+| `wsserver_bytes_received_total` | Counter | Bytes received from clients |
+| `wsserver_queue_overflow_total` | Counter | Messages rejected (REJECT_NEW) per namespace/topic/reason |
+| `wsserver_messages_dropped_total` | Counter | Messages dropped (DROP_OLDEST) per namespace/topic |
+| `wsserver_messages_coalesced_total` | Counter | Messages coalesced per namespace/topic |
+| `wsserver_messages_spilled_total` | Counter | Messages spilled to disk per namespace/topic |
+| `wsserver_retry_count_total` | Counter | Retry attempts per namespace/topic |
+| `wsserver_retry_exhausted_total` | Counter | Messages whose retry budget was exhausted |
+| `wsserver_auth_rejected_total` | Counter | Auth rejections per namespace |
+| `wsserver_auth_rate_limited_total` | Counter | Rate-limited auth attempts per namespace |
+| `wsserver_lane_count` | Gauge | Active client lanes per namespace/topic |
+| `wsserver_lane_depth_max` | Gauge | Max queue depth across lanes per namespace/topic |
+| `wsserver_lane_bytes_max` | Gauge | Max queued bytes across lanes per namespace/topic |
 
-- Use `throughput` for high-volume feeds where occasional drop/coalesce behavior is acceptable and low overhead matters most.
-- Use `realtime` for websocket-first live feeds where freshness matters more than retaining every intermediate update.
-- Use `reliable` for business-critical client delivery where the consumer must acknowledge what it received.
-- Use `bulk` for testing large payload transfer and verifying byte-rate, payload metadata, and transfer limits.
-- Use `pressure` for rehearsal of failure behavior, alerting, retry tuning, and queue-bound stress validation.
+Standard JVM and process meters (memory, GC, threads, CPU, file descriptors, uptime) are registered automatically.
 
-## Running The Demo
+---
 
-The demo launcher starts:
+## Event listeners
 
-- one launcher JVM
-- one demo server JVM
-- one preset-driven client swarm child JVM
-- one browser dashboard served over HTTP
+Register one or more `ServerEventListener` implementations at build time:
 
-Default endpoints:
+```java
+SocketIoServer.builder()
+    .listener(new ServerEventListener() {
+        @Override public void onServerStarted(ServerStartedEvent e) { }
+        @Override public void onClientConnected(ClientConnectedEvent e) { }
+        @Override public void onQueueOverflow(QueueOverflowEvent e) { }
+        // ... implement only the events you care about
+    })
+    .buildServer();
+```
 
-- Socket.IO server: `http://127.0.0.1:9092`
-- Metrics endpoint: `http://127.0.0.1:9093`
-- Browser dashboard: `http://127.0.0.1:9094`
+All 14 callbacks:
 
-Start everything with one command:
+| Callback | Event fields |
+|----------|-------------|
+| `onServerStarting` | host, port, managementPort |
+| `onServerStarted` | host, port, managementPort |
+| `onServerStopping` | host, port, managementPort |
+| `onServerStopped` | host, port, managementPort |
+| `onClientConnected` | namespace, clientId, transport, principal |
+| `onClientDisconnected` | namespace, clientId |
+| `onSubscribed` | namespace, clientId, topic |
+| `onUnsubscribed` | namespace, clientId, topic |
+| `onPublishAccepted` | namespace, clientId, topic |
+| `onPublishRejected` | namespace, clientId, topic, code, reason |
+| `onQueueOverflow` | namespace, clientId, topic, reason |
+| `onAuthRejected` | namespace, clientId, remote, reason |
+| `onRetry` | namespace, clientId, topic, messageId, retryCount |
+| `onRetryExhausted` | namespace, clientId, topic, messageId, retryCount |
+
+Listener failures are isolated from the runtime.
+
+---
+
+## Server API reference
+
+### `SocketIoServerBuilder` methods
+
+| Method | Default | Description |
+|--------|---------|-------------|
+| `host(String)` | `"0.0.0.0"` | Bind address |
+| `port(int)` | `9092` | Socket.IO listen port |
+| `transportMode(TransportMode)` | `WS` | `WS` or `WSS` |
+| `tls(TLSConfig)` | `null` | TLS settings; required for WSS |
+| `pingIntervalMs(int)` | `20000` | WebSocket ping interval |
+| `pingTimeoutMs(int)` | `40000` | WebSocket ping timeout |
+| `maxFramePayloadLength(int)` | `5242880` | Max frame payload bytes |
+| `maxHttpContentLength(int)` | `5242880` | Max HTTP body bytes (polling) |
+| `compressionEnabled(boolean)` | `true` | HTTP and WebSocket compression |
+| `enableCors(boolean)` | `false` | Permissive CORS headers |
+| `origin(String)` | `null` | Allowed CORS origin |
+| `authMode(AuthMode)` | `NONE` | `NONE` or `TOKEN` |
+| `staticToken(String, String)` | — | Add a principal-to-token entry |
+| `staticTokens(Map)` | — | Add multiple token entries |
+| `namespace(NamespaceSpec)` | — | Register a namespace |
+| `managementHost(String)` | `"0.0.0.0"` | Management HTTP bind address |
+| `managementPort(int)` | `0` | Prometheus scrape port; 0 = disabled |
+| `shutdownDrainMs(int)` | `10000` | Shutdown grace period |
+| `senderThreads(int)` | `0` | Sender threads; 0 = auto |
+| `authRejectWindowMs(int)` | `60000` | Auth rate-limit window |
+| `authRejectMaxPerWindow(int)` | `20` | Max auth failures per window |
+| `spillRootPath(String)` | `".streamfence-spill"` | Root dir for spill files |
+| `tokenValidator(TokenValidator)` | `null` | Custom async token validator |
+| `listener(ServerEventListener)` | — | Add event listener |
+| `listeners(List)` | — | Add multiple listeners |
+| `fromYaml(Path)` | — | Seed all fields from YAML file |
+| `fromJson(Path)` | — | Seed all fields from JSON file |
+| `fromClasspath(String)` | — | Seed from classpath resource |
+| `build()` | — | Return validated `SocketIoServerSpec` |
+| `buildServer()` | — | Return ready-to-start `SocketIoServer` |
+
+---
+
+## NamespaceSpec builder
+
+Obtain via `NamespaceSpec.builder(String path)`.
+
+| Method | Default | Description |
+|--------|---------|-------------|
+| `topic(String)` | — | Append a single topic |
+| `topics(List<String>)` | — | Set the topic list |
+| `authRequired(boolean)` | `false` | Require token auth |
+| `deliveryMode(DeliveryMode)` | `BEST_EFFORT` | Delivery guarantee |
+| `overflowAction(OverflowAction)` | `REJECT_NEW` | Queue-full policy |
+| `maxQueuedMessagesPerClient(int)` | `64` | Per-client message cap |
+| `maxQueuedBytesPerClient(long)` | `524288` | Per-client byte cap |
+| `ackTimeoutMs(long)` | `1000` | Ack timeout for AT_LEAST_ONCE |
+| `maxRetries(int)` | `0` | Retry budget; must be positive for AT_LEAST_ONCE |
+| `coalesce(boolean)` | `false` | Enable message coalescing |
+| `allowPolling(boolean)` | `true` | Allow HTTP long-polling |
+| `maxInFlight(int)` | `1` | Max unacknowledged messages per client |
+| `build()` | — | Return validated `NamespaceSpec` |
+
+---
+
+## API reference
+
+Public types in `io.streamfence`:
+
+| Type | Kind | Description |
+|------|------|-------------|
+| `SocketIoServer` | Class | Main entry point; `AutoCloseable` |
+| `SocketIoServerBuilder` | Class | Fluent builder |
+| `SocketIoServerSpec` | Record | Immutable server configuration snapshot |
+| `NamespaceSpec` | Record | Per-namespace configuration |
+| `NamespaceSpec.Builder` | Class | Namespace fluent builder |
+| `DeliveryMode` | Enum | `BEST_EFFORT`, `AT_LEAST_ONCE` |
+| `OverflowAction` | Enum | `REJECT_NEW`, `DROP_OLDEST`, `COALESCE`, `SNAPSHOT_ONLY`, `SPILL_TO_DISK` |
+| `TransportMode` | Enum | `WS`, `WSS` |
+| `AuthMode` | Enum | `NONE`, `TOKEN` |
+| `AuthDecision` | Record | Result of auth check; `accept(principal)` or `reject(reason)` |
+| `TokenValidator` | Interface | Functional interface for async token validation |
+| `TLSConfig` | Record | PEM paths, passwords, and protocol for WSS |
+| `ServerMetrics` | Class | Micrometer registry + `scrape()` + per-metric record methods |
+| `ServerEventListener` | Interface | 14-callback event hook interface |
+
+---
+
+## Examples
+
+Three runnable examples live in `streamfence-demo`:
+
+- [SingleServerExample](streamfence-demo/src/main/java/io/streamfence/demo/examples/SingleServerExample.java) — one BEST_EFFORT namespace, three publishes, clean stop.
+- [MultiNamespaceExample](streamfence-demo/src/main/java/io/streamfence/demo/examples/MultiNamespaceExample.java) — three namespaces with different overflow policies, one publish each.
+- [MixedWorkloadExample](streamfence-demo/src/main/java/io/streamfence/demo/examples/MixedWorkloadExample.java) — two servers side by side: a high-frequency feed server and a reliable control server.
+
+All three are exercised by [ExamplesSmokeTest](streamfence-demo/src/test/java/io/streamfence/demo/examples/ExamplesSmokeTest.java) on every build.
+
+Reference YAML configurations for the mixed-workload servers:
+- [mixed-workload-feed.yaml](streamfence-demo/src/main/resources/examples/mixed-workload-feed.yaml)
+- [mixed-workload-control.yaml](streamfence-demo/src/main/resources/examples/mixed-workload-control.yaml)
+
+---
+
+## Demo
+
+The `streamfence-demo` module ships a multi-process demo launcher with a browser dashboard. Start everything with one command:
 
 ```bash
 mvn -pl streamfence-demo exec:java
 ```
+
+Default endpoints:
+
+- Socket.IO server: `http://127.0.0.1:9092`
+- Prometheus metrics: `http://127.0.0.1:9093/metrics`
+- Browser dashboard: `http://127.0.0.1:9094`
 
 Override ports at launch time:
 
@@ -354,16 +534,11 @@ Override ports at launch time:
 mvn -pl streamfence-demo exec:java -Dexec.args="--server-port=9192 --management-port=9193 --console-port=9194"
 ```
 
-What the dashboard shows:
+The dashboard shows live message rates, byte rates, active clients, retry/overflow/drop counters, per-namespace breakdowns, and payload metadata.
 
-- active clients, total messages, live messages per second, send bytes per second, receive bytes per second
-- retry, queue overflow, dropped, and coalesced counters from the Prometheus management scrape
-- per-namespace counters and config breakdown
-- a sampled live timeline of launcher, server, and client activity
-- payload metadata and preset deep-dive explanations
-- manual actions for preset switching, persona restart, scenario pause and resume, targeted samples, and browser-side publish testing
+Five built-in presets demonstrate different operational profiles (`throughput`, `realtime`, `reliable`, `bulk`, `pressure`).
 
-To enable TLS or WSS in the sample config, switch `transportMode` to `WSS` and fill in the PEM settings under `tls`.
+---
 
 ## Building
 
@@ -372,13 +547,48 @@ Requirements:
 - Java 25
 - Maven 3.9+
 
-Build the full project:
+Build and test everything:
 
 ```bash
-mvn clean install
+mvn clean install -Dgpg.skip=true
 ```
 
-This produces artifacts from:
+This produces:
 
-- `streamfence-core/target`
-- `streamfence-demo/target`
+- `streamfence-core/target/streamfence-core-*.jar` — the library artifact
+- `streamfence-demo/target/streamfence-demo-*.jar` — the demo launcher
+
+Run only the core library tests with coverage gate (60% instruction coverage required):
+
+```bash
+mvn -pl streamfence-core clean verify -Dgpg.skip=true
+```
+
+---
+
+## Status / roadmap
+
+**v1 — complete**
+
+- `BEST_EFFORT` and `AT_LEAST_ONCE` delivery modes
+- Five overflow policies including `SPILL_TO_DISK`
+- Token authentication with custom validator support
+- TLS with hot PEM reload
+- Prometheus metrics via Micrometer
+- YAML / JSON config loading
+- 14-callback `ServerEventListener`
+- 65+ core tests, integration tests, and example smoke tests
+- JaCoCo 60% instruction coverage gate on `streamfence-core`
+
+**Planned v2 items**
+
+- Persistent `AT_LEAST_ONCE` queues that survive server restart
+- Distributed spill coordination across nodes
+- Formal microbenchmark harness (JMH)
+- gRPC or HTTP/2 transport option
+
+---
+
+## License
+
+Apache 2.0 — see [LICENSE](LICENSE).
