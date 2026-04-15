@@ -81,7 +81,7 @@ public final class SpillFileStore {
     }
 
     synchronized void append(LaneEntry laneEntry) {
-        SpillRecord record = toRecord(laneEntry);
+        SpillFileRecord record = toRecord(laneEntry);
         long sequence = nextSequence++;
         Path tempFile = rootDirectory.resolve(String.format("%08d.tmp", sequence));
         Path committedFile = rootDirectory.resolve(String.format("%08d.spill", sequence));
@@ -144,13 +144,13 @@ public final class SpillFileStore {
         }
     }
 
-    private SpillRecord toRecord(LaneEntry laneEntry) {
+    private SpillFileRecord toRecord(LaneEntry laneEntry) {
         TopicMessageEnvelope envelope = null;
         Object[] eventArguments = laneEntry.outboundMessage().eventArguments();
         if (eventArguments.length > 0 && eventArguments[0] instanceof TopicMessageEnvelope topicMessageEnvelope) {
             envelope = topicMessageEnvelope;
         }
-        return new SpillRecord(
+        return new SpillFileRecord(
                 laneEntry.outboundMessage().eventName(),
                 laneEntry.namespace(),
                 laneEntry.topic(),
@@ -169,16 +169,5 @@ public final class SpillFileStore {
     private static String stripExtension(String fileName) {
         int dotIndex = fileName.lastIndexOf('.');
         return dotIndex >= 0 ? fileName.substring(0, dotIndex) : fileName;
-    }
-
-    private record SpillRecord(
-            String eventName,
-            String namespace,
-            String topic,
-            String messageId,
-            boolean ackRequired,
-            long estimatedBytes,
-            Object payload
-    ) {
     }
 }
