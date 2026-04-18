@@ -6,7 +6,7 @@
 
     <groupId>io.github.moshpe</groupId>
     <artifactId>streamfence</artifactId>
-    <version>1.0.8-SNAPSHOT</version>
+    <version>1.0.8</version>
     <packaging>pom</packaging>
 
     <name>streamfence-parent</name>
@@ -36,7 +36,7 @@
     </modules>
 
     <properties>
-        <maven.compiler.release>25</maven.compiler.release>
+        <maven.compiler.release>17</maven.compiler.release>
         <flatten-maven-plugin.version>1.6.0</flatten-maven-plugin.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>

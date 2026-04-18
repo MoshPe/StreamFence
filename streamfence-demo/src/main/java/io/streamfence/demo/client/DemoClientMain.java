@@ -94,7 +94,7 @@ public final class DemoClientMain {
 
     private static DemoPersona resolvePersona(String[] args, String presetId) {
         List<DemoPersona> personas = DemoScenarioDefinition.forPreset(presetId).personas();
-        String requestedName = positionalArgs(args).isEmpty() ? personas.getFirst().name() : positionalArgs(args).getFirst();
+        String requestedName = positionalArgs(args).isEmpty() ? personas.get(0).name() : positionalArgs(args).get(0);
         return personas.stream()
                 .filter(persona -> persona.name().equals(requestedName))
                 .findFirst()
