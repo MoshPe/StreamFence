@@ -1,11 +1,32 @@
 package io.streamfence;
 
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class NamespaceSpecTest {
+
+    @Test
+    void acceptsSpillToDiskForBestEffortNamespaces() {
+        NamespaceSpec namespace = NamespaceSpec.builder("/feed")
+                .authRequired(false)
+                .deliveryMode(DeliveryMode.BEST_EFFORT)
+                .overflowAction(OverflowAction.SPILL_TO_DISK)
+                .maxQueuedMessagesPerClient(16)
+                .maxQueuedBytesPerClient(65_536)
+                .ackTimeoutMs(1_000)
+                .maxRetries(0)
+                .coalesce(false)
+                .allowPolling(true)
+                .maxInFlight(1)
+                .topics(List.of("prices"))
+                .build();
+
+        assertThat(namespace.overflowAction()).isEqualTo(OverflowAction.SPILL_TO_DISK);
+        assertThat(namespace.deliveryMode()).isEqualTo(DeliveryMode.BEST_EFFORT);
+    }
 
     @Test
     void rejectsDuplicateTopicNames() {
@@ -38,6 +59,25 @@ class NamespaceSpecTest {
                         .ackTimeoutMs(1_000)
                         .maxRetries(0)
                         .coalesce(true)
+                        .allowPolling(true)
+                        .maxInFlight(1)
+                        .topics(List.of("alerts"))
+                        .build())
+                .withMessageContaining("AT_LEAST_ONCE");
+    }
+
+    @Test
+    void rejectsSpillToDiskForAtLeastOnceNamespaces() {
+        assertThatIllegalArgumentException()
+                .isThrownBy(() -> NamespaceSpec.builder("/reliable")
+                        .authRequired(true)
+                        .deliveryMode(DeliveryMode.AT_LEAST_ONCE)
+                        .overflowAction(OverflowAction.SPILL_TO_DISK)
+                        .maxQueuedMessagesPerClient(16)
+                        .maxQueuedBytesPerClient(65_536)
+                        .ackTimeoutMs(1_000)
+                        .maxRetries(3)
+                        .coalesce(false)
                         .allowPolling(true)
                         .maxInFlight(1)
                         .topics(List.of("alerts"))

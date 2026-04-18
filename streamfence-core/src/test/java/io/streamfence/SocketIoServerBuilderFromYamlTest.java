@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Comparator;
+import java.util.Objects;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 
@@ -66,25 +67,18 @@ class SocketIoServerBuilderFromYamlTest {
             """;
 
     @Test
-    void fromYamlSeedsEveryFieldIntoBuilder() throws IOException {
-        Path dir = Files.createTempDirectory("builder-seed-");
-        try {
-            Path yaml = dir.resolve("application.yaml");
-            Files.writeString(yaml, BASE_YAML);
+    void fromYamlSeedsTargetedFieldsAndSpillRootPath() throws IOException {
+        SocketIoServerSpec spec = SocketIoServer.builder()
+                .fromYaml(spillConfigPath())
+                .build();
 
-            SocketIoServerSpec spec = SocketIoServer.builder()
-                    .fromYaml(yaml)
-                    .build();
-
-            assertThat(spec.host()).isEqualTo("127.0.0.1");
-            assertThat(spec.port()).isEqualTo(9090);
-            assertThat(spec.transportMode()).isEqualTo(TransportMode.WS);
-            assertThat(spec.authMode()).isEqualTo(AuthMode.NONE);
-            assertThat(spec.namespaces()).extracting(NamespaceSpec::path)
-                    .contains("/non-reliable", "/reliable", "/bulk");
-        } finally {
-            deleteRecursively(dir);
-        }
+        assertThat(spec.host()).isEqualTo("127.0.0.1");
+        assertThat(spec.port()).isEqualTo(9090);
+        assertThat(spec.transportMode()).isEqualTo(TransportMode.WS);
+        assertThat(spec.authMode()).isEqualTo(AuthMode.NONE);
+        assertThat(spec.namespaces()).extracting(NamespaceSpec::path)
+                .contains("/non-reliable", "/reliable", "/bulk");
+        assertThat(spec.spillRootPath()).isEqualTo(".streamfence-spill");
     }
 
     @Test
@@ -172,6 +166,16 @@ class SocketIoServerBuilderFromYamlTest {
             assertThat(spec.tokenValidator()).isSameAs(validator);
         } finally {
             deleteRecursively(dir);
+        }
+    }
+
+    private static Path spillConfigPath() {
+        try {
+            return Path.of(Objects.requireNonNull(
+                    SocketIoServerBuilderFromYamlTest.class.getResource("/spill-to-disk-config.yaml"))
+                    .toURI());
+        } catch (Exception exception) {
+            throw new AssertionError("spill-to-disk-config.yaml must be available on the test classpath", exception);
         }
     }
 

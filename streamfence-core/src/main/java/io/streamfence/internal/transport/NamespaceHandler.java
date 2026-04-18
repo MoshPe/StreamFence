@@ -22,6 +22,7 @@ import io.streamfence.internal.protocol.PublishRequest;
 import io.streamfence.internal.protocol.SubscriptionRequest;
 import io.streamfence.internal.delivery.TopicRegistry;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -152,7 +153,10 @@ public final class NamespaceHandler {
             return;
         }
 
-        sessionRegistry.subscribe(sessionState, request.topic(), topicPolicy.get());
+        Path spillRoot = serverConfig.spillRootPath() != null
+                ? Path.of(serverConfig.spillRootPath())
+                : null;
+        sessionRegistry.subscribe(sessionState, request.topic(), topicPolicy.get(), spillRoot);
         eventPublisher.subscribed(namespace, client.getSessionId().toString(), request.topic());
         client.sendEvent("subscribed", request);
     }

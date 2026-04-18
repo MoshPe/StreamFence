@@ -52,6 +52,7 @@ class SocketIoServerSpecMapperTest {
                 0,
                 60_000,
                 20,
+                SocketIoServerSpec.DEFAULT_SPILL_ROOT_PATH,
                 null,
                 List.of());
 
@@ -107,7 +108,8 @@ class SocketIoServerSpecMapperTest {
                 10_000,
                 0,
                 60_000,
-                20
+                20,
+                SocketIoServerSpec.DEFAULT_SPILL_ROOT_PATH
         );
 
         SocketIoServerSpec spec = SocketIoServerSpecMapper.fromServerConfig(config);
@@ -158,11 +160,53 @@ class SocketIoServerSpecMapperTest {
                 10_000,
                 0,
                 60_000,
-                20
+                20,
+                SocketIoServerSpec.DEFAULT_SPILL_ROOT_PATH
         );
 
         assertThatIllegalArgumentException()
                 .isThrownBy(() -> SocketIoServerSpecMapper.fromServerConfig(config))
                 .withMessageContaining("/feed");
+    }
+
+    @Test
+    void fromServerConfigPreservesSpillRootPath() {
+        ServerConfig config = new ServerConfig(
+                "127.0.0.1",
+                9090,
+                TransportMode.WS,
+                null,
+                15_000,
+                30_000,
+                6_291_456,
+                6_291_456,
+                false,
+                false,
+                null,
+                AuthMode.NONE,
+                Map.of(),
+                Map.of("/non-reliable", new NamespaceConfig(false),
+                        "/reliable", new NamespaceConfig(false),
+                        "/bulk", new NamespaceConfig(false)),
+                List.of(
+                        new TopicPolicy("/non-reliable", "prices", DeliveryMode.BEST_EFFORT,
+                                OverflowAction.SPILL_TO_DISK, 8, 1_024, 1_000, 0, false, true, false, 1),
+                        new TopicPolicy("/reliable", "alerts", DeliveryMode.BEST_EFFORT,
+                                OverflowAction.REJECT_NEW, 8, 1_024, 1_000, 0, false, true, false, 1),
+                        new TopicPolicy("/bulk", "uploads", DeliveryMode.BEST_EFFORT,
+                                OverflowAction.REJECT_NEW, 8, 1_024, 1_000, 0, false, true, false, 1)
+                ),
+                "0.0.0.0",
+                0,
+                10_000,
+                0,
+                60_000,
+                20,
+                SocketIoServerSpec.DEFAULT_SPILL_ROOT_PATH
+        );
+
+        SocketIoServerSpec spec = SocketIoServerSpecMapper.fromServerConfig(config);
+
+        assertThat(spec.spillRootPath()).isEqualTo(".streamfence-spill");
     }
 }

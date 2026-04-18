@@ -3,6 +3,7 @@ package io.streamfence.internal.delivery;
 import com.corundumstudio.socketio.SocketIOClient;
 import io.streamfence.internal.config.TopicPolicy;
 
+import java.nio.file.Path;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
@@ -41,15 +42,22 @@ public final class ClientSessionState {
     }
 
     public void subscribe(String topic, TopicPolicy topicPolicy) {
+        subscribe(topic, topicPolicy, null);
+    }
+
+    public void subscribe(String topic, TopicPolicy topicPolicy, Path spillRoot) {
         subscriptions.add(topic);
-        lanes.computeIfAbsent(topic, ignored -> new ClientLane(topicPolicy));
+        lanes.computeIfAbsent(topic, ignored -> new ClientLane(topicPolicy, spillRoot));
     }
 
     public void unsubscribe(String topic) {
         subscriptions.remove(topic);
         // Drop the lane (and any queued messages) and clear the drain flag so
         // the per-topic state does not leak across repeated subscribe cycles.
-        lanes.remove(topic);
+        ClientLane removed = lanes.remove(topic);
+        if (removed != null) {
+            removed.close();
+        }
         drainingTopics.remove(topic);
     }
 
@@ -66,12 +74,27 @@ public final class ClientSessionState {
         return Collections.unmodifiableSet(subscriptions);
     }
 
+    /**
+     * Closes all lanes for this session, releasing any spill files on disk.
+     * Called on client disconnect to ensure spill resources are reclaimed.
+     */
+    public void closeAllLanes() {
+        for (ClientLane lane : lanes.values()) {
+            lane.close();
+        }
+        lanes.clear();
+    }
+
     public ClientLane lane(String topic) {
         return lanes.get(topic);
     }
 
     public ClientLane lane(String topic, TopicPolicy topicPolicy) {
         return lanes.computeIfAbsent(topic, ignored -> new ClientLane(topicPolicy));
+    }
+
+    public ClientLane lane(String topic, TopicPolicy topicPolicy, Path spillRoot) {
+        return lanes.computeIfAbsent(topic, ignored -> new ClientLane(topicPolicy, spillRoot));
     }
 
     public boolean startDrain(String topic) {

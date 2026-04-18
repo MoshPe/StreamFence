@@ -1,6 +1,7 @@
 package io.streamfence.internal.delivery;
 
 import io.streamfence.internal.config.TopicPolicy;
+import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
@@ -38,7 +39,8 @@ public final class ClientSessionRegistry {
 
     /**
      * Removes the client and drops it from every subscription index bucket
-     * it was listed in. Called from the namespace disconnect path.
+     * it was listed in. Also closes all lanes (releasing any spill files on disk).
+     * Called from the namespace disconnect path.
      */
     public void remove(String clientId) {
         ClientSessionState removed = sessions.remove(clientId);
@@ -48,6 +50,7 @@ public final class ClientSessionRegistry {
         for (String topic : removed.subscriptions()) {
             removeFromIndex(removed, topic);
         }
+        removed.closeAllLanes();
     }
 
     public Collection<ClientSessionState> allSessions() {
@@ -59,7 +62,15 @@ public final class ClientSessionRegistry {
      * reverse index used by publish. Idempotent.
      */
     public void subscribe(ClientSessionState sessionState, String topic, TopicPolicy topicPolicy) {
-        sessionState.subscribe(topic, topicPolicy);
+        subscribe(sessionState, topic, topicPolicy, null);
+    }
+
+    /**
+     * Registers a subscription with an explicit spill root for
+     * {@link io.streamfence.OverflowAction#SPILL_TO_DISK} lanes.
+     */
+    public void subscribe(ClientSessionState sessionState, String topic, TopicPolicy topicPolicy, Path spillRoot) {
+        sessionState.subscribe(topic, topicPolicy, spillRoot);
         subscribers
                 .computeIfAbsent(new SubscriptionKey(sessionState.namespace(), topic),
                         ignored -> ConcurrentHashMap.newKeySet())

@@ -40,6 +40,7 @@ import java.util.Objects;
  * @param senderThreads         sender thread pool size; {@code 0} means auto-size
  * @param authRejectWindowMs    sliding window duration for auth rate limiting in milliseconds
  * @param authRejectMaxPerWindow maximum auth rejections per window before rate limiting
+ * @param spillRootPath         root directory used for spill-to-disk queue storage
  * @param tokenValidator        custom token validator; may be {@code null}
  * @param listeners             ordered list of event listeners
  */
@@ -64,9 +65,17 @@ public record SocketIoServerSpec(
         int senderThreads,
         int authRejectWindowMs,
         int authRejectMaxPerWindow,
+        String spillRootPath,
         TokenValidator tokenValidator,
         List<ServerEventListener> listeners
 ) {
+    public static final String DEFAULT_SPILL_ROOT_PATH = ".streamfence-spill";
+
+    public static String normalizeSpillRootPath(String spillRootPath) {
+        return (spillRootPath == null || spillRootPath.isBlank())
+                ? DEFAULT_SPILL_ROOT_PATH
+                : spillRootPath;
+    }
 
     /**
      * Compact constructor that validates and normalises field values.
@@ -120,6 +129,7 @@ public record SocketIoServerSpec(
         if (authRejectMaxPerWindow <= 0) {
             authRejectMaxPerWindow = 20;
         }
+        spillRootPath = normalizeSpillRootPath(spillRootPath);
     }
 
     /**

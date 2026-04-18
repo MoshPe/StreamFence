@@ -25,6 +25,7 @@ class BulkNamespaceIntegrationTest {
     @Test
     void bulkNamespaceDeliversPublishedEnvelopeToSubscriber() throws Exception {
         int port = nextPort();
+        String spillRootPath = io.streamfence.SocketIoServerSpec.DEFAULT_SPILL_ROOT_PATH;
         ServerConfig config = new ServerConfig(
                 "127.0.0.1",
                 port,
@@ -56,7 +57,14 @@ class BulkNamespaceIntegrationTest {
                         false,
                         false,
                         false,
-                        1))
+                        1)),
+                "0.0.0.0",
+                0,
+                10_000,
+                0,
+                60_000,
+                20,
+                spillRootPath
         );
 
         CountDownLatch subscribedLatch = new CountDownLatch(1);

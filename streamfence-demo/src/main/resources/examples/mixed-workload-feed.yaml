@@ -1,0 +1,27 @@
+host: 127.0.0.1
+port: 9094
+transportMode: WS
+managementPort: 0
+shutdownDrainMs: 5000
+senderThreads: 2
+pingIntervalMs: 20000
+pingTimeoutMs: 40000
+maxFramePayloadLength: 5242880
+maxHttpContentLength: 5242880
+compressionEnabled: false
+authMode: NONE
+namespaces:
+  /feed:
+    authRequired: false
+topicPolicies:
+  - namespace: /feed
+    topics: [prices, quotes]
+    deliveryMode: BEST_EFFORT
+    overflowAction: DROP_OLDEST
+    maxQueuedMessagesPerClient: 64
+    maxQueuedBytesPerClient: 524288
+    ackTimeoutMs: 1000
+    maxRetries: 0
+    coalesce: false
+    allowPolling: true
+    authRequired: false

@@ -22,10 +22,7 @@ jobs:
 
       - name: Build and test
         run: |
-          mvn -pl streamfence-core \
-              --no-transfer-progress \
-              clean verify \
-              -Dgpg.skip=true
+          mvn --no-transfer-progress clean verify -Dgpg.skip=true
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v5

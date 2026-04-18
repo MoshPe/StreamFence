@@ -249,6 +249,12 @@ public final class TopicDispatcher implements AutoCloseable {
                         topicPolicy.namespace(), topicPolicy.topic(), sessionState.clientId(), result.reason());
                 scheduleDrain(sessionState, topicPolicy.topic());
             }
+            case SPILLED -> {
+                metrics.recordSpill(topicPolicy.namespace(), topicPolicy.topic());
+                LOG.debug("event=spill_to_disk namespace={} topic={} clientId={} reason={}",
+                        topicPolicy.namespace(), topicPolicy.topic(), sessionState.clientId(), result.reason());
+                scheduleDrain(sessionState, topicPolicy.topic());
+            }
             case REJECTED -> {
                 metrics.recordQueueOverflow(topicPolicy.namespace(), topicPolicy.topic(), result.reason());
                 eventPublisher.queueOverflow(topicPolicy.namespace(), sessionState.clientId(), topicPolicy.topic(), result.reason());

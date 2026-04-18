@@ -1,0 +1,28 @@
+host: 127.0.0.1
+port: 9095
+transportMode: WS
+managementPort: 0
+shutdownDrainMs: 5000
+senderThreads: 2
+pingIntervalMs: 20000
+pingTimeoutMs: 40000
+maxFramePayloadLength: 1048576
+maxHttpContentLength: 1048576
+compressionEnabled: false
+authMode: NONE
+namespaces:
+  /control:
+    authRequired: false
+topicPolicies:
+  - namespace: /control
+    topics: [commands]
+    deliveryMode: AT_LEAST_ONCE
+    overflowAction: REJECT_NEW
+    maxQueuedMessagesPerClient: 128
+    maxQueuedBytesPerClient: 1048576
+    ackTimeoutMs: 2000
+    maxRetries: 3
+    coalesce: false
+    allowPolling: true
+    authRequired: false
+    maxInFlight: 4
