@@ -6,7 +6,7 @@
 
     <groupId>io.github.moshpe</groupId>
     <artifactId>streamfence</artifactId>
-    <version>1.0.1</version>
+    <version>1.0.8-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <name>streamfence-parent</name>
