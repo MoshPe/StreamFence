@@ -109,7 +109,11 @@ public final class SpillFileStore {
             for (Path path : stream.toList()) {
                 Matcher matcher = FILE_PATTERN.matcher(path.getFileName().toString());
                 if (matcher.matches()) {
-                    highestSequence = Math.max(highestSequence, Long.parseLong(matcher.group(1)));
+                    try {
+                        highestSequence = Math.max(highestSequence, Long.parseLong(matcher.group(1)));
+                    } catch (NumberFormatException exception) {
+                        throw new IllegalStateException("Invalid spill file sequence in " + path, exception);
+                    }
                 }
             }
         } catch (IOException exception) {
