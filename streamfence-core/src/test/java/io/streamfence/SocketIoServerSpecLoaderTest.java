@@ -185,6 +185,24 @@ class SocketIoServerSpecLoaderTest {
     }
 
     @Test
+    void normalizeSpillRootPathReturnsDefaultForNullAndBlank() {
+        assertThat(SocketIoServerSpec.normalizeSpillRootPath(null))
+                .isEqualTo(SocketIoServerSpec.DEFAULT_SPILL_ROOT_PATH);
+        assertThat(SocketIoServerSpec.normalizeSpillRootPath(""))
+                .isEqualTo(SocketIoServerSpec.DEFAULT_SPILL_ROOT_PATH);
+        assertThat(SocketIoServerSpec.normalizeSpillRootPath("   "))
+                .isEqualTo(SocketIoServerSpec.DEFAULT_SPILL_ROOT_PATH);
+    }
+
+    @Test
+    void normalizeSpillRootPathReturnsCustomPathWhenNonBlank() {
+        assertThat(SocketIoServerSpec.normalizeSpillRootPath("/var/spill"))
+                .isEqualTo("/var/spill");
+        assertThat(SocketIoServerSpec.normalizeSpillRootPath("my-spill-dir"))
+                .isEqualTo("my-spill-dir");
+    }
+
+    @Test
     void fromYamlWrapsMalformedYamlWithPathAndLineNumber() throws IOException {
         Path dir = Files.createTempDirectory("spec-loader-");
         try {
