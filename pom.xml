@@ -6,7 +6,7 @@
 
     <groupId>io.github.moshpe</groupId>
     <artifactId>streamfence</artifactId>
-    <version>1.0.8-SNAPSHOT</version>
+    <version>1.0.8</version>
     <packaging>pom</packaging>
 
     <name>streamfence-parent</name>
@@ -36,11 +36,12 @@
     </modules>
 
     <properties>
-        <maven.compiler.release>25</maven.compiler.release>
+        <maven.compiler.release>17</maven.compiler.release>
         <flatten-maven-plugin.version>1.6.0</flatten-maven-plugin.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <netty-socketio.version>2.0.14</netty-socketio.version>
+        <netty.version>4.1.132.Final</netty.version>
         <jackson.version>2.21.2</jackson.version>
         <bouncycastle.version>1.84</bouncycastle.version>
         <slf4j.version>2.0.9</slf4j.version>
@@ -67,6 +68,14 @@
 
     <dependencyManagement>
         <dependencies>
+            <!-- Pin Netty to satisfy CVE fixes; overrides the version pulled in by netty-socketio -->
+            <dependency>
+                <groupId>io.netty</groupId>
+                <artifactId>netty-bom</artifactId>
+                <version>${netty.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
             <dependency>
                 <groupId>com.corundumstudio.socketio</groupId>
                 <artifactId>netty-socketio</artifactId>

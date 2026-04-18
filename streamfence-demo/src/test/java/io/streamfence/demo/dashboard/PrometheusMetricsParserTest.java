@@ -35,7 +35,7 @@ class PrometheusMetricsParserTest {
         assertThat(snapshot.coalesced()).isEqualTo(7);
         assertThat(snapshot.namespaces()).extracting(NamespaceSnapshot::namespace)
                 .containsExactly("/non-reliable", "/reliable");
-        assertThat(snapshot.namespaces().getFirst().messagesReceived()).isEqualTo(110);
+        assertThat(snapshot.namespaces().get(0).messagesReceived()).isEqualTo(110);
         assertThat(snapshot.namespaces().get(1).retryCount()).isEqualTo(3);
     }
 

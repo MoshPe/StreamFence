@@ -10,7 +10,7 @@
   <a href="https://codecov.io/gh/MoshPe/StreamFence"><img src="https://codecov.io/gh/MoshPe/StreamFence/branch/main/graph/badge.svg" alt="codecov"></a>
   <a href="https://central.sonatype.com/artifact/io.github.moshpe/streamfence-core"><img src="https://img.shields.io/maven-central/v/io.github.moshpe/streamfence-core.svg" alt="Maven Central"></a>
   <a href="https://github.com/MoshPe/StreamFence/releases/latest"><img src="https://img.shields.io/github/v/release/MoshPe/StreamFence" alt="GitHub Release"></a>
-  <a href="https://openjdk.org/projects/jdk/25/"><img src="https://img.shields.io/badge/Java-25-blue?logo=openjdk" alt="Java 25"></a>
+  <a href="https://openjdk.org/projects/jdk/17/"><img src="https://img.shields.io/badge/Java-17-blue?logo=openjdk" alt="Java 17"></a>
   <a href="https://www.apache.org/licenses/LICENSE-2.0"><img src="https://img.shields.io/badge/license-Apache%202.0-blue.svg" alt="License"></a>
 </p>
 
@@ -81,11 +81,11 @@ Add `streamfence-core` to your Maven project:
 <dependency>
     <groupId>io.github.moshpe</groupId>
     <artifactId>streamfence-core</artifactId>
-    <version>1.0.1</version>
+    <version>1.0.7</version>
 </dependency>
 ```
 
-Requires Java 25.
+Requires Java 17.
 
 ---
 

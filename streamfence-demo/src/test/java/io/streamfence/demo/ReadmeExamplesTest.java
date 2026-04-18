@@ -64,8 +64,8 @@ class ReadmeExamplesTest {
         String readme = Files.readString(repoRoot.resolve("README.md"));
 
         assertThat(readme).contains("<artifactId>streamfence-core</artifactId>");
-        assertThat(readme).contains("<version>1.0.1</version>");
-        assertThat(readme).contains("Requires Java 25.");
+        assertThat(readme).contains("<version>1.0.7</version>");
+        assertThat(readme).contains("Requires Java 17.");
         assertThat(readme).contains("NamespaceSpec.builder(\"/feed\")");
         assertThat(readme).contains("server.publish(\"/feed\", \"snapshot\"");
         assertThat(readme).contains("server.publishTo(\"/feed\", \"client-session-id\", \"snapshot\"");

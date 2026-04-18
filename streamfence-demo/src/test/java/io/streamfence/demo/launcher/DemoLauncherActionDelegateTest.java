@@ -19,7 +19,7 @@ class DemoLauncherActionDelegateTest {
         delegate.targetedSample("/non-reliable", "client-7", "prices", Map.of("symbol", "WSR"));
 
         assertThat(control.serverCommands).hasSize(2);
-        assertThat(control.serverCommands.getFirst().type()).isEqualTo("broadcastSample");
+        assertThat(control.serverCommands.get(0).type()).isEqualTo("broadcastSample");
         assertThat(control.serverCommands.get(1).type()).isEqualTo("targetedSample");
         assertThat(control.serverCommands.get(1).clientId()).isEqualTo("client-7");
     }

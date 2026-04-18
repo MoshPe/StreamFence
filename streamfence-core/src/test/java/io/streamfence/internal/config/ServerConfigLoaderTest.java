@@ -82,7 +82,7 @@ class ServerConfigLoaderTest {
             assertThat(config.origin()).isEqualTo("https://app.example.com");
             assertThat(config.namespaces()).containsKeys("/non-reliable", "/reliable", "/bulk");
             assertThat(config.topicPolicies()).hasSize(2);
-            assertThat(config.topicPolicies().getFirst().deliveryMode()).isEqualTo(DeliveryMode.BEST_EFFORT);
+            assertThat(config.topicPolicies().get(0).deliveryMode()).isEqualTo(DeliveryMode.BEST_EFFORT);
         } finally {
             deleteRecursively(tempDir);
         }

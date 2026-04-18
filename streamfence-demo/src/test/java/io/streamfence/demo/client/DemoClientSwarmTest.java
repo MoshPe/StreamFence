@@ -46,7 +46,7 @@ class DemoClientSwarmTest {
                 assertThat(client.connected).isTrue();
                 assertThat(client.subscriptions).containsExactly("prices");
                 assertThat(client.publishes).hasSize(1);
-                assertThat(client.publishes.getFirst().topic()).isEqualTo("prices");
+                assertThat(client.publishes.get(0).topic()).isEqualTo("prices");
             });
         }
     }

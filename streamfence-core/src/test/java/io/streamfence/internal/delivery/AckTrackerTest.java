@@ -37,8 +37,8 @@ class AckTrackerTest {
         var decisions = ackTracker.collectExpired(now.plusSeconds(3));
 
         assertThat(decisions).hasSize(1);
-        assertThat(decisions.getFirst().action()).isEqualTo(RetryAction.RETRY);
-        assertThat(decisions.getFirst().pendingMessage().retryCount()).isEqualTo(1);
+        assertThat(decisions.get(0).action()).isEqualTo(RetryAction.RETRY);
+        assertThat(decisions.get(0).pendingMessage().retryCount()).isEqualTo(1);
         assertThat(ackTracker.pendingCount()).isEqualTo(1);
     }
 
@@ -54,7 +54,7 @@ class AckTrackerTest {
         var decisions = ackTracker.collectExpired(now.plusSeconds(6));
 
         assertThat(decisions).hasSize(1);
-        assertThat(decisions.getFirst().action()).isEqualTo(RetryAction.EXHAUSTED);
+        assertThat(decisions.get(0).action()).isEqualTo(RetryAction.EXHAUSTED);
         assertThat(ackTracker.pendingCount()).isZero();
     }
 
