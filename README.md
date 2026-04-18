@@ -81,7 +81,7 @@ Add `streamfence-core` to your Maven project:
 <dependency>
     <groupId>io.github.moshpe</groupId>
     <artifactId>streamfence-core</artifactId>
-    <version>1.0.1</version>
+    <version>1.0.7</version>
 </dependency>
 ```
 
