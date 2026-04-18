@@ -85,7 +85,7 @@ Add `streamfence-core` to your Maven project:
 </dependency>
 ```
 
-Requires Java 25.
+Requires Java 17.
 
 ---
 

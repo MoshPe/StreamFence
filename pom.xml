@@ -41,6 +41,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <netty-socketio.version>2.0.14</netty-socketio.version>
+        <netty.version>4.1.132.Final</netty.version>
         <jackson.version>2.21.2</jackson.version>
         <bouncycastle.version>1.84</bouncycastle.version>
         <slf4j.version>2.0.9</slf4j.version>
@@ -67,6 +68,14 @@
 
     <dependencyManagement>
         <dependencies>
+            <!-- Pin Netty to satisfy CVE fixes; overrides the version pulled in by netty-socketio -->
+            <dependency>
+                <groupId>io.netty</groupId>
+                <artifactId>netty-bom</artifactId>
+                <version>${netty.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
             <dependency>
                 <groupId>com.corundumstudio.socketio</groupId>
                 <artifactId>netty-socketio</artifactId>
