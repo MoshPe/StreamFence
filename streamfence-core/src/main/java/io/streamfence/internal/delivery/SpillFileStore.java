@@ -6,6 +6,8 @@ import io.streamfence.internal.protocol.OutboundTopicMessage;
 import io.streamfence.internal.protocol.TopicMessageEnvelope;
 import io.streamfence.internal.protocol.TopicMessageMetadata;
 import java.io.IOException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -19,6 +21,7 @@ import java.util.regex.Pattern;
 
 public final class SpillFileStore {
 
+    private static final Logger LOG = LoggerFactory.getLogger(SpillFileStore.class);
     private static final Pattern FILE_PATTERN = Pattern.compile("^(\\d+)\\.(spill|tmp)$");
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
@@ -51,14 +54,32 @@ public final class SpillFileStore {
         }
 
         List<LaneEntry> entries = new ArrayList<>(committedFiles.size());
+        List<Path> toDelete = new ArrayList<>(committedFiles.size());
+
+        // Pass 1: read all entries, skip corrupt files
         for (Path committedFile : committedFiles) {
-            entries.add(readEntry(committedFile));
+            LaneEntry entry;
             try {
-                Files.deleteIfExists(committedFile);
+                entry = readEntry(committedFile);
+            } catch (IllegalStateException exception) {
+                LOG.warn("event=spill_corrupt_file path={} error={} — skipping and deleting",
+                        committedFile, exception.getMessage());
+                toDelete.add(committedFile);
+                continue;
+            }
+            entries.add(entry);
+            toDelete.add(committedFile);
+        }
+
+        // Pass 2: delete all processed files (corrupt + read)
+        for (Path path : toDelete) {
+            try {
+                Files.deleteIfExists(path);
             } catch (IOException exception) {
-                throw new IllegalStateException("Failed to delete spill file " + committedFile, exception);
+                LOG.warn("event=spill_delete_failed path={} error={}", path, exception.getMessage());
             }
         }
+
         return List.copyOf(entries);
     }
 
@@ -80,6 +101,17 @@ public final class SpillFileStore {
         }
     }
 
+    /**
+     * Writes a spill record to disk synchronously (write-to-temp + atomic rename).
+     *
+     * <p><b>Threading note:</b> This method does blocking file I/O. It is safe to call
+     * from any thread, but callers that run on Netty I/O event-loop threads (e.g. the
+     * {@code "publish"} socket event handler) will block that thread while the write
+     * completes. The server-side {@link io.streamfence.SocketIoServer#publish} path runs
+     * on user threads and is unaffected. Client-originated publishes via the socket
+     * {@code "publish"} event are the only Netty-thread caller; consider offloading that
+     * handler to the sender executor if client-to-server publish throughput is high.
+     */
     synchronized void append(LaneEntry laneEntry) {
         SpillFileRecord record = toRecord(laneEntry);
         long sequence = nextSequence++;

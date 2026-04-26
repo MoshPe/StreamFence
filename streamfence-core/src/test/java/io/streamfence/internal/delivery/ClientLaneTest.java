@@ -226,6 +226,21 @@ class ClientLaneTest {
         lane.close();
     }
 
+    @Test
+    void hasAnyPendingReturnsTrueWhenQueueHasEntries() {
+        ClientLane lane = new ClientLane(policy(OverflowAction.REJECT_NEW, 4, 256, false));
+        lane.enqueue(message("m1", 32, null));
+
+        assertThat(lane.hasAnyPending()).isTrue();
+    }
+
+    @Test
+    void hasAnyPendingReturnsFalseWhenLaneIsEmpty() {
+        ClientLane lane = new ClientLane(policy(OverflowAction.REJECT_NEW, 4, 256, false));
+
+        assertThat(lane.hasAnyPending()).isFalse();
+    }
+
     // ── helpers ──────────────────────────────────────────────────────────────
 
     private static java.util.List<String> drainIds(ClientLane lane) {

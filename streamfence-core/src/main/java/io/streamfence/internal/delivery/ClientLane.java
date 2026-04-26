@@ -82,6 +82,22 @@ public final class ClientLane {
     }
 
     /**
+     * Returns whether the lane has any undelivered work — either in-memory
+     * queued entries or spill files on disk — without loading any spill data
+     * from disk. Safe to call from any thread (including Netty I/O threads)
+     * because it does no file I/O.
+     *
+     * <p>Unlike {@link #hasPendingSend()}, this method may return {@code true}
+     * even when all in-memory entries are already in-flight and no new send is
+     * immediately possible. It is intended for scheduling decisions (should we
+     * wake up a drain?) rather than "is there something ready to send right now?"
+     * checks inside the drain loop itself.
+     */
+    public synchronized boolean hasAnyPending() {
+        return !queue.isEmpty() || spilledCount > 0;
+    }
+
+    /**
      * Returns whether the lane currently contains work that can be sent.
      * Reliable lanes with only in-flight entries return false so the
      * dispatcher does not spin re-scheduling drains while waiting for ACKs.
@@ -191,7 +207,11 @@ public final class ClientLane {
      * {@code maxQueuedMessagesPerClient}.
      */
     public synchronized LaneEntry removeByMessageId(String messageId) {
-        loadSpilledEntriesIfNeeded();
+        // Intentionally no loadSpilledEntriesIfNeeded() here: entries that can be
+        // removed by message ID (acked or retry-exhausted) were already loaded into
+        // the in-memory queue and marked awaitingAck before being sent. Loading spill
+        // would do unnecessary disk I/O and — when called from the Netty I/O thread
+        // via acknowledge() — would block the event loop.
         var iterator = queue.iterator();
         while (iterator.hasNext()) {
             LaneEntry entry = iterator.next();

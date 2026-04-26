@@ -119,8 +119,26 @@ public final class TopicDispatcher implements AutoCloseable {
         metrics.recordPublish(namespace, topic, publishedMessage.estimatedBytes());
     }
 
-    public void onClientDisconnected(String clientId) {
+    /**
+     * Handles client disconnect: removes the client from the {@link AckTracker}
+     * synchronously (fast, no I/O), then schedules session and lane cleanup on
+     * the sender executor to avoid blocking the Netty I/O thread on spill-file
+     * deletes.
+     *
+     * <p>Called from the Netty disconnect event handler; must not do disk I/O.
+     */
+    public void onClientDisconnectedAsync(String clientId) {
         ackTracker.removeClient(clientId);
+        if (senderExecutor.isShutdown()) {
+            sessionRegistry.remove(clientId);
+            return;
+        }
+        try {
+            senderExecutor.execute(() -> sessionRegistry.remove(clientId));
+        } catch (RejectedExecutionException ignored) {
+            // Executor shut down between the isShutdown check and execute.
+            sessionRegistry.remove(clientId);
+        }
     }
 
     public void onClientUnsubscribed(String clientId, String namespace, String topic) {
@@ -140,7 +158,7 @@ public final class TopicDispatcher implements AutoCloseable {
         ClientLane lane = sessionState.lane(topic);
         if (lane != null) {
             LaneEntry removed = lane.removeByMessageId(messageId);
-            if (removed != null && lane.hasPendingSend()) {
+            if (removed != null && lane.hasAnyPending()) {
                 scheduleDrain(sessionState, topic);
             }
         }
@@ -163,7 +181,7 @@ public final class TopicDispatcher implements AutoCloseable {
                     ClientLane lane = sessionState.lane(decision.topic());
                     if (lane != null) {
                         LaneEntry removed = lane.removeByMessageId(decision.pendingMessage().messageId());
-                        if (removed != null && lane.hasPendingSend()) {
+                        if (removed != null && lane.hasAnyPending()) {
                             scheduleDrain(sessionState, decision.topic());
                         }
                     }
@@ -329,7 +347,8 @@ public final class TopicDispatcher implements AutoCloseable {
         } finally {
             sessionState.finishDrain(topic);
             ClientLane lane = sessionState.lane(topic);
-            if (lane != null && lane.hasPendingSend()) {
+            if (lane != null && lane.hasPendingSend()
+                    && lane.inFlightCount() < lane.topicPolicy().maxInFlight()) {
                 scheduleDrain(sessionState, topic);
             }
         }

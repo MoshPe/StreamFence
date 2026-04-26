@@ -127,8 +127,8 @@ public final class NamespaceHandler {
 
     private void onDisconnect(SocketIOClient client) {
         String clientId = client.getSessionId().toString();
-        topicDispatcher.onClientDisconnected(clientId);
-        sessionRegistry.remove(clientId);
+        // Fast: remove from ACK tracker synchronously. Async: lane/spill cleanup off Netty thread.
+        topicDispatcher.onClientDisconnectedAsync(clientId);
         metrics.recordDisconnect(namespace);
         eventPublisher.clientDisconnected(namespace, clientId);
         LOG.info("event=disconnect namespace={} clientId={}", namespace, client.getSessionId());

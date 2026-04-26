@@ -47,6 +47,30 @@ class TopicDispatcherTest {
     }
 
     @Test
+    void secondReliableMessageDeliveredOnlyAfterFirstIsAcknowledged() {
+        DispatcherFixture fixture = new DispatcherFixture(1);
+
+        try (TopicDispatcher dispatcher = fixture.dispatcher()) {
+            dispatcher.publish("/reliable", "alerts", Map.of("seq", 1));
+            dispatcher.publish("/reliable", "alerts", Map.of("seq", 2));
+
+            // Only 1 in-flight slot: first message sent, second held back.
+            Awaitility.await()
+                    .atMost(Duration.ofSeconds(5))
+                    .untilAsserted(() -> assertThat(fixture.recordingClient().messageIds()).hasSize(1));
+
+            // Acknowledge the first message to release the in-flight slot.
+            String firstMessageId = fixture.recordingClient().messageIds().get(0);
+            dispatcher.acknowledge("client-1", "/reliable", "alerts", firstMessageId);
+
+            // Now the second message must be delivered.
+            Awaitility.await()
+                    .atMost(Duration.ofSeconds(5))
+                    .untilAsserted(() -> assertThat(fixture.recordingClient().messageIds()).hasSize(2));
+        }
+    }
+
+    @Test
     void outOfOrderAckDoesNotBlockLaterReliableMessages() {
         DispatcherFixture fixture = new DispatcherFixture(2);
 

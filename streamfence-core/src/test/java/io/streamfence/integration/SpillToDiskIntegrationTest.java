@@ -3,10 +3,12 @@ package io.streamfence.integration;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
+import io.streamfence.AuthMode;
 import io.streamfence.DeliveryMode;
 import io.streamfence.NamespaceSpec;
 import io.streamfence.OverflowAction;
 import io.streamfence.SocketIoServer;
+import io.streamfence.TransportMode;
 import io.socket.client.IO;
 import io.socket.client.Socket;
 import java.net.ServerSocket;
@@ -154,6 +156,122 @@ class SpillToDiskIntegrationTest {
                                     .as("spill files under %s must be cleaned up after disconnect", tempDir)
                                     .isZero();
                         }
+                    });
+        }
+    }
+
+    /**
+     * End-to-end verification that AT_LEAST_ONCE + SPILL_TO_DISK works:
+     * <ol>
+     *   <li>Publish 2 messages to a queue of capacity 1 — message 2 must spill.</li>
+     *   <li>Client receives message 1, acks it.</li>
+     *   <li>After ack, message 2 is loaded from disk and delivered.</li>
+     *   <li>Client acks message 2 — server is clean.</li>
+     * </ol>
+     */
+    @Test
+    void atLeastOnceSpillToDiskDeliversSpilledMessageAfterAck(@TempDir Path tempDir) throws Exception {
+        final String ns    = "/reliable";
+        final String topic = "alerts";
+        int port = nextPort();
+
+        try (SocketIoServer server = SocketIoServer.builder()
+                .host("127.0.0.1")
+                .port(port)
+                .transportMode(TransportMode.WS)
+                .authMode(AuthMode.NONE)
+                .spillRootPath(tempDir.toString())
+                .namespace(NamespaceSpec.builder(ns)
+                        .topic(topic)
+                        .deliveryMode(DeliveryMode.AT_LEAST_ONCE)
+                        .overflowAction(OverflowAction.SPILL_TO_DISK)
+                        .maxQueuedMessagesPerClient(1)      // capacity=1 → msg 2 spills
+                        .maxQueuedBytesPerClient(524_288)
+                        .ackTimeoutMs(5_000)
+                        .maxRetries(3)
+                        .coalesce(false)
+                        .allowPolling(false)
+                        .maxInFlight(1)
+                        .build())
+                .buildServer()) {
+
+            server.start();
+
+            List<JSONObject> received = new CopyOnWriteArrayList<>();
+            CountDownLatch subscribedLatch = new CountDownLatch(1);
+
+            IO.Options opts = IO.Options.builder()
+                    .setForceNew(true)
+                    .setReconnection(false)
+                    .setTransports(new String[]{"websocket"})
+                    .setTimeout(5_000)
+                    .build();
+
+            Socket socket = IO.socket("http://127.0.0.1:" + port + ns, opts);
+            try {
+                socket.on(Socket.EVENT_CONNECT, args ->
+                        socket.emit("subscribe", new JSONObject(Map.of("topic", topic))));
+                socket.on("subscribed", args -> subscribedLatch.countDown());
+
+                socket.on("topic-message", args -> {
+                    if (args.length > 0 && args[0] instanceof JSONObject json) {
+                        received.add(json);
+                        // Ack immediately so the next message can be delivered.
+                        try {
+                            String msgId   = json.getJSONObject("metadata").getString("messageId");
+                            String msgTopic = json.getJSONObject("metadata").getString("topic");
+                            socket.emit("ack", new JSONObject()
+                                    .put("topic", msgTopic)
+                                    .put("messageId", msgId));
+                        } catch (Exception ignored) {
+                        }
+                    }
+                });
+
+                socket.connect();
+                assertThat(subscribedLatch.await(10, TimeUnit.SECONDS))
+                        .as("subscribe must complete within 10 s").isTrue();
+
+                // Publish 2 messages; queue capacity=1 so message 2 spills.
+                server.publish(ns, topic, Map.of("seq", 1));
+                server.publish(ns, topic, Map.of("seq", 2));
+
+                // Wait for both messages to arrive (spilled one delivered after ack of first).
+                await().atMost(15, TimeUnit.SECONDS)
+                        .pollInterval(100, TimeUnit.MILLISECONDS)
+                        .until(() -> received.size() >= 2);
+
+                assertThat(received).hasSize(2);
+
+                // Verify FIFO order.
+                List<Integer> seqs = new ArrayList<>();
+                for (JSONObject msg : received) {
+                    seqs.add(msg.getJSONObject("payload").optInt("seq", -1));
+                }
+                assertThat(seqs)
+                        .as("AT_LEAST_ONCE spill messages must arrive in publish order")
+                        .containsExactly(1, 2);
+
+                // Both messages must carry ackRequired=true.
+                for (JSONObject msg : received) {
+                    assertThat(msg.getJSONObject("metadata").getBoolean("ackRequired"))
+                            .as("AT_LEAST_ONCE messages must have ackRequired=true")
+                            .isTrue();
+                }
+
+            } finally {
+                socket.disconnect();
+                socket.close();
+            }
+
+            // After disconnect, spill directory must be cleaned up.
+            await().atMost(5, TimeUnit.SECONDS)
+                    .pollInterval(100, TimeUnit.MILLISECONDS)
+                    .untilAsserted(() -> {
+                        long spillFiles = countSpillFiles(tempDir);
+                        assertThat(spillFiles)
+                                .as("spill files must be removed after disconnect")
+                                .isZero();
                     });
         }
     }

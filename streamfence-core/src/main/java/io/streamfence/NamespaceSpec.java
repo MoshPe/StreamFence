@@ -85,8 +85,9 @@ public record NamespaceSpec(
             maxInFlight = 1;
         }
         if (deliveryMode == DeliveryMode.AT_LEAST_ONCE) {
-            if (overflowAction != OverflowAction.REJECT_NEW) {
-                throw new IllegalArgumentException("AT_LEAST_ONCE namespaces must use REJECT_NEW overflowAction");
+            if (overflowAction != OverflowAction.REJECT_NEW && overflowAction != OverflowAction.SPILL_TO_DISK) {
+                throw new IllegalArgumentException(
+                        "AT_LEAST_ONCE namespaces must use REJECT_NEW or SPILL_TO_DISK overflowAction");
             }
             if (coalesce) {
                 throw new IllegalArgumentException("AT_LEAST_ONCE namespaces cannot enable coalescing");
